@@ -1,0 +1,24 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Crustum\Mcp\Request;
+use Crustum\Mcp\Response;
+use Crustum\Mcp\Server\Attributes\Description;
+use Crustum\Mcp\Server\Resource;
+
+#[Description('A description of what this resource contains.')]
+class {{ class }} extends Resource
+{
+    /**
+     * Handle the resource request.
+     *
+     * @param \Crustum\Mcp\Request $request MCP request
+     * @return \Crustum\Mcp\Response
+     */
+    public function handle(Request $request): Response
+    {
+        return Response::text('The resource content.');
+    }
+}

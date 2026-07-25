@@ -1,0 +1,255 @@
+<?php
+declare(strict_types=1);
+
+use Crustum\Mcp\Response;
+use Crustum\Mcp\Schema\Icon;
+use Crustum\Mcp\Server\Attributes\Icon as IconAttribute;
+use Crustum\Mcp\Server\Tool;
+use Crustum\Mcp\Server\Tools\Annotations\IsDestructive;
+use Crustum\Mcp\Server\Tools\Annotations\IsIdempotent;
+use Crustum\Mcp\Server\Tools\Annotations\IsOpenWorld;
+use Crustum\Mcp\Server\Tools\Annotations\IsReadOnly;
+use Crustum\JsonSchema\Contracts\JsonSchema;
+
+test('the default name is in kebab case', function (): void {
+    $tool = new AnotherComplexToolName();
+    expect($tool->name())->toBe('another-complex-tool-name');
+});
+
+test('the name may be tweaked', function (): void {
+    $tool = new CustomToolName();
+
+    expect($tool->name())->toBe('my_custom_tool_name');
+});
+
+it('returns no annotations by default', function (): void {
+    $tool = new TestTool();
+    expect($tool->annotations())->toEqual([]);
+});
+
+it('can have a custom title', function (): void {
+    $tool = new CustomTitleTool();
+    expect($tool->toArray()['title'])->toBe('Custom Title Tool');
+});
+
+it('can be read only', function (): void {
+    $tool = new ReadOnlyTool();
+    $annotations = $tool->annotations();
+    expect($annotations['readOnlyHint'])->toBeTrue();
+});
+
+it('can be closed world', function (): void {
+    $tool = new ClosedWorldTool();
+    expect($tool->annotations()['openWorldHint'])->toBeFalse();
+});
+
+it('can be idempotent', function (): void {
+    $tool = new IdempotentTool();
+    $annotations = $tool->annotations();
+    expect($annotations['idempotentHint'])->toBeTrue();
+});
+
+it('can be destructive', function (): void {
+    $tool = new DestructiveTool();
+    $annotations = $tool->annotations();
+    expect($annotations['destructiveHint'])->toBeTrue();
+});
+
+it('is not destructive', function (): void {
+    $tool = new NotDestructiveTool();
+    $annotations = $tool->annotations();
+    expect($annotations['destructiveHint'])->toBeFalse();
+});
+
+it('can be open world', function (): void {
+    $tool = new OpenWorldTool();
+    expect($tool->annotations()['openWorldHint'])->toBeTrue();
+});
+
+it('can have multiple annotations', function (): void {
+    $tool = new KitchenSinkTool();
+    expect($tool->annotations())->toEqual([
+        'readOnlyHint' => true,
+        'idempotentHint' => true,
+        'destructiveHint' => false,
+        'openWorldHint' => false,
+    ]);
+});
+
+it('includes an empty properties object when the schema has no properties', function (): void {
+    $tool = new TestTool();
+    $array = $tool->toArray();
+
+    expect($array['inputSchema'])
+        ->toHaveKey('type', 'object')
+        ->toHaveKey('properties')
+        ->and($array['inputSchema']['properties'])->toEqual((object)[]);
+});
+
+it('includes schema properties when defined', function (): void {
+    $tool = new ToolWithSchema();
+    $array = $tool->toArray();
+
+    expect($array['inputSchema']['properties'])
+        ->toHaveKey('message')
+        ->and($array['inputSchema']['properties']['message'])
+        ->toHaveKey('type', 'string')
+        ->toHaveKey('description', 'The message to echo')
+        ->and($array['inputSchema']['required'])->toEqual(['message']);
+});
+
+it('can have custom meta', function (): void {
+    $tool = new CustomMetaTool();
+    expect($tool->toArray()['_meta'])->toEqual(['key' => 'value']);
+});
+
+it('omits icons key when no icons are declared', function (): void {
+    expect((new TestTool())->toArray())->not->toHaveKey('icons');
+});
+
+it('includes icons in toArray when declared', function (): void {
+    $array = (new ToolWithIcons())->toArray();
+
+    expect($array['icons'])->toBe([
+        ['src' => 'https://example.com/tool.png', 'mimeType' => 'image/png'],
+    ]);
+});
+
+it('includes icons declared via the Icon attribute', function (): void {
+    $array = (new ToolWithIconAttribute())->toArray();
+
+    expect($array['icons'])->toBe([
+        ['src' => 'https://example.com/attribute.png', 'mimeType' => 'image/png'],
+    ]);
+});
+
+it('default outputSchema returns empty array', function (): void {
+    $tool = new ToolWithoutOutputSchema();
+    $array = $tool->toArray();
+
+    expect($array)->not->toHaveKey('outputSchema');
+});
+
+it('outputSchema can be overridden to return custom schema', function (): void {
+    $tool = new ToolWithOutputSchema();
+    $array = $tool->toArray();
+
+    expect($array)->toHaveKey('outputSchema')
+        ->and($array['outputSchema']['properties'])->toHaveKey('result')
+        ->and($array['outputSchema']['properties'])->toHaveKey('count');
+});
+
+class TestTool extends Tool
+{
+    #[\Override]
+    public function description(): string
+    {
+        return 'A test tool';
+    }
+
+    public function handle(): Response
+    {
+        return Response::text('test');
+    }
+}
+
+class CustomTitleTool extends TestTool
+{
+    protected string $title = 'Custom Title Tool';
+}
+
+#[IsReadOnly]
+class ReadOnlyTool extends TestTool
+{
+}
+
+#[IsOpenWorld(false)]
+class ClosedWorldTool extends TestTool
+{
+}
+
+#[IsIdempotent]
+class IdempotentTool extends TestTool
+{
+}
+
+#[IsDestructive]
+class DestructiveTool extends TestTool
+{
+}
+
+#[IsDestructive(false)]
+class NotDestructiveTool extends TestTool
+{
+}
+
+#[IsOpenWorld]
+class OpenWorldTool extends TestTool
+{
+}
+
+#[IsReadOnly]
+#[IsIdempotent]
+#[IsDestructive(false)]
+#[IsOpenWorld(false)]
+class KitchenSinkTool extends TestTool
+{
+    protected string $title = 'The Kitchen Sink';
+}
+
+class AnotherComplexToolName extends TestTool
+{
+}
+
+class CustomToolName extends TestTool
+{
+    protected string $name = 'my_custom_tool_name';
+}
+
+class ToolWithSchema extends TestTool
+{
+    #[\Override]
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'message' => $schema->string()->description('The message to echo')->required(),
+        ];
+    }
+}
+
+class CustomMetaTool extends TestTool
+{
+    protected ?array $meta = [
+        'key' => 'value',
+    ];
+}
+
+class ToolWithIcons extends TestTool
+{
+    #[\Override]
+    public function icons(): array
+    {
+        return [new Icon('https://example.com/tool.png', mimeType: 'image/png')];
+    }
+}
+
+#[IconAttribute('https://example.com/attribute.png', mimeType: 'image/png')]
+class ToolWithIconAttribute extends TestTool
+{
+}
+
+class ToolWithOutputSchema extends TestTool
+{
+    #[\Override]
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return [
+            'result' => $schema->string()->description('The result value')->required(),
+            'count' => $schema->integer()->description('The count value')->required(),
+        ];
+    }
+}
+
+class ToolWithoutOutputSchema extends TestTool
+{
+}

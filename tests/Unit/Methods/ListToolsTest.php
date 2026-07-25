@@ -1,0 +1,527 @@
+<?php
+declare(strict_types=1);
+
+use Crustum\JsonSchema\Contracts\JsonSchema;
+use Crustum\Mcp\Request;
+use Crustum\Mcp\Schema\Implementation;
+use Crustum\Mcp\Server\Methods\ListTools;
+use Crustum\Mcp\Server\ServerContext;
+use Crustum\Mcp\Transport\JsonRpcRequest;
+use Crustum\Mcp\Transport\JsonRpcResponse;
+use Crustum\Mcp\Test\Fixtures\SayHiTool;
+use Crustum\Mcp\Test\Fixtures\SayHiWithMetaTool;
+use Crustum\Mcp\Test\Fixtures\ToolWithoutOutputSchema;
+use Crustum\Mcp\Test\Fixtures\ToolWithOutputSchema;
+
+if (! class_exists('Tests\\Unit\\Methods\\DummyTool1')) {
+    for ($i = 1; $i <= 12; $i++) {
+        eval("
+            namespace Tests\\Unit\\Methods;
+            use Generator;
+            use Crustum\JsonSchema\Contracts\JsonSchema;
+            use Crustum\\Mcp\\Server\\Tool;
+            use Crustum\\Mcp\\Request;
+            use Crustum\\Mcp\\Response;
+            class DummyTool{$i} extends Tool {
+                public function description(): string { return 'Description for dummy tool {$i}'; }
+                public function handle(Request \$request): Response|Generator { return Response::text(''); }
+            }
+        ");
+    }
+}
+
+it('returns a valid list tools response', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [SayHiTool::class],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $response = $listTools->handle($request, $context);
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class);
+    $payload = $response->toArray();
+    expect($payload['id'])->toEqual(1)
+        ->and($payload['result'])->toEqual([
+            'tools' => [
+                [
+                    'name' => 'say-hi-tool',
+                    'description' => 'This tool says hello to a person',
+                    'inputSchema' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'name' => [
+                                'type' => 'string',
+                                'description' => 'The name of the person to greet',
+                            ],
+                        ],
+                        'required' => ['name'],
+                    ],
+                    'annotations' => (object) [],
+                    'title' => 'Say Hi Tool',
+                ],
+            ],
+        ]);
+});
+
+it('handles pagination correctly', function (): void {
+    $toolClasses = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $toolClasses[] = "Tests\\Unit\\Methods\\DummyTool{$i}";
+    }
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 10,
+        tools: $toolClasses,
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $firstListToolsRequest = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $firstPageResponse = $listTools->handle($firstListToolsRequest, $context);
+
+    $firstPayload = $firstPageResponse->toArray();
+    expect($firstPageResponse)->toBeInstanceOf(JsonRpcResponse::class)
+        ->and($firstPayload['id'])->toEqual(1)
+        ->and($firstPayload['result']['tools'])->toHaveCount(10)
+        ->and($firstPayload['result'])->toHaveKey('nextCursor')
+        ->and($firstPayload['result']['nextCursor'])->not->toBeNull()
+        ->and($firstPayload['result']['tools'][0]['name'])->toEqual('dummy-tool1')
+        ->and($firstPayload['result']['tools'][9]['name'])->toEqual('dummy-tool10');
+
+    $nextCursor = $firstPayload['result']['nextCursor'];
+
+    $secondListToolsRequest = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 2,
+        'method' => 'list-tools',
+        'params' => ['cursor' => $nextCursor],
+    ]);
+
+    $secondPageResponse = $listTools->handle($secondListToolsRequest, $context);
+
+    $secondPayload = $secondPageResponse->toArray();
+    expect($secondPageResponse)->toBeInstanceOf(JsonRpcResponse::class)
+        ->and($secondPayload['id'])->toEqual(2)
+        ->and($secondPayload['result']['tools'])->toHaveCount(2)
+        ->and($secondPayload['result'])->not->toHaveKey('nextCursor')
+        ->and($secondPayload['result']['tools'][0]['name'])->toEqual('dummy-tool11')
+        ->and($secondPayload['result']['tools'][1]['name'])->toEqual('dummy-tool12');
+});
+
+it('uses default per page when not provided', function (): void {
+    $toolClasses = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $toolClasses[] = "Tests\\Unit\\Methods\\DummyTool{$i}";
+    }
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 7,
+        tools: $toolClasses,
+        resources: [],
+        prompts: [],
+    );
+
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [/** no per_page */],
+    ]);
+
+    $listTools = new ListTools;
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+    expect($payload['result']['tools'])->toHaveCount(7)
+        ->and($payload['result'])->toHaveKey('nextCursor');
+});
+
+it('uses requested per page when valid', function (): void {
+    $toolClasses = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $toolClasses[] = "Tests\\Unit\\Methods\\DummyTool{$i}";
+    }
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 10,
+        tools: $toolClasses,
+        resources: [],
+        prompts: [],
+    );
+
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => ['per_page' => 5],
+    ]);
+
+    $listTools = new ListTools;
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+    expect($payload['result']['tools'])->toHaveCount(5)
+        ->and($payload['result'])->toHaveKey('nextCursor');
+});
+
+it('caps per page at max pagination length', function (): void {
+    $toolClasses = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $toolClasses[] = "Tests\\Unit\\Methods\\DummyTool{$i}";
+    }
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 7,
+        defaultPaginationLength: 7,
+        tools: $toolClasses,
+        resources: [],
+        prompts: [],
+    );
+
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => ['per_page' => 20],
+    ]);
+
+    $listTools = new ListTools;
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+    expect($payload['result']['tools'])->toHaveCount(7)
+        ->and($payload['result'])->toHaveKey('nextCursor');
+});
+
+it('respects per page when bigger than default', function (): void {
+    $toolClasses = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $toolClasses[] = "Tests\\Unit\\Methods\\DummyTool{$i}";
+    }
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 15,
+        defaultPaginationLength: 5,
+        tools: $toolClasses,
+        resources: [],
+        prompts: [],
+    );
+
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => ['per_page' => 8],
+    ]);
+
+    $listTools = new ListTools;
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+    expect($payload['result']['tools'])->toHaveCount(8)
+        ->and($payload['result'])->toHaveKey('nextCursor');
+});
+
+it('returns empty list when the single tool is not eligible for registration', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [new class extends SayHiTool
+        {
+            public function shouldRegister(): bool
+            {
+                return false;
+            }
+        }],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $response = $listTools->handle($request, $context);
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class);
+    $payload = $response->toArray();
+
+    expect($payload['id'])->toEqual(1)
+        ->and($payload['result'])->toEqual([
+            'tools' => [],
+        ]);
+});
+
+it('returns empty list when the single prompt is not eligible for registration via request', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [
+            'arguments' => ['register_tools' => false],
+        ],
+    ]);
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [new class extends SayHiTool
+        {
+            public function shouldRegister(Request $request): bool
+            {
+                return $request->get('register_tools', true);
+            }
+        }],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $this->instance('mcp.request', $request->toRequest());
+    $response = $listTools->handle($request, $context);
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class);
+    $payload = $response->toArray();
+
+    expect($payload['id'])->toEqual(1)
+        ->and($payload['result'])->toEqual([
+            'tools' => [],
+        ]);
+});
+
+it('includes meta in tool response when tool has meta property', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [SayHiWithMetaTool::class],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $response = $listTools->handle($request, $context);
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class);
+    $payload = $response->toArray();
+    expect($payload['id'])->toEqual(1)
+        ->and($payload['result'])->toEqual([
+            'tools' => [
+                [
+                    'name' => 'say-hi-with-meta-tool',
+                    'title' => 'Say Hi With Meta Tool',
+                    'description' => 'This tool says hello to a person with metadata',
+                    'inputSchema' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'name' => [
+                                'type' => 'string',
+                                'description' => 'The name of the person to greet',
+                            ],
+                        ],
+                        'required' => ['name'],
+                    ],
+                    'annotations' => (object) [],
+                    '_meta' => [
+                        'requestId' => 'abc-123',
+                        'source' => 'tests/fixtures',
+                    ],
+                ],
+            ],
+        ]);
+});
+
+it('includes outputSchema when the tool defines it', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [ToolWithOutputSchema::class],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+    $tool = $payload['result']['tools'][0];
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class)
+        ->and($payload)->toMatchArray(['id' => 1])
+        ->and($payload['result']['tools'])->toHaveCount(1)
+        ->and($tool)->toHaveKey('outputSchema')
+        ->and($tool['outputSchema'])->toMatchArray([
+            'type' => 'object',
+            'properties' => [
+                'id' => [
+                    'type' => 'integer',
+                    'description' => 'User ID',
+                ],
+                'name' => [
+                    'type' => 'string',
+                    'description' => 'User name',
+                ],
+                'email' => [
+                    'type' => 'string',
+                    'description' => 'User email',
+                ],
+            ],
+            'required' => ['id', 'name'],
+        ]);
+});
+
+it('excludes outputSchema when the tool returns empty schema', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [ToolWithoutOutputSchema::class],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class)
+        ->and($payload)->toMatchArray(['id' => 1])
+        ->and($payload['result']['tools'])->toHaveCount(1)
+        ->and($payload['result']['tools'][0])->not->toHaveKey('outputSchema');
+});
+
+it('excludes outputSchema for default object type only', function (): void {
+    $request = JsonRpcRequest::from([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'list-tools',
+        'params' => [],
+    ]);
+
+    $toolWithDefaultObjectType = new class extends SayHiTool
+    {
+        public function outputSchema(JsonSchema $schema): array
+        {
+            return [];
+        }
+    };
+
+    $context = new ServerContext(
+        supportedProtocolVersions: ['2025-03-26'],
+        serverCapabilities: [],
+        implementation: new Implementation('Test Server', '1.0.0'),
+        instructions: 'Test instructions',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 5,
+        tools: [$toolWithDefaultObjectType],
+        resources: [],
+        prompts: [],
+    );
+
+    $listTools = new ListTools;
+
+    $response = $listTools->handle($request, $context);
+
+    $payload = $response->toArray();
+
+    expect($response)->toBeInstanceOf(JsonRpcResponse::class)
+        ->and($payload)->toMatchArray(['id' => 1])
+        ->and($payload['result']['tools'])->toHaveCount(1)
+        ->and($payload['result']['tools'][0])->not->toHaveKey('outputSchema');
+});

@@ -1,0 +1,113 @@
+---
+name: mcp-development
+description: "Use this skill for CakePHP MCP (crustum/mcp) development. Trigger when creating or editing MCP tools, resources, prompts, servers, or UI apps. Covers: bake mcp_* generators, config/mcp.php (Mcp.Servers / Mcp.local), Tool/Resource/Prompt/AppResource classes, schema validation, shouldRegister(), OAuth/Tessera, URI templates, read-only attributes, MCP debugging, MCP UI apps, Crustum/Mcp.mcp_app layout, createMcpApp(), AppResource handle() + Response::view(), AppMeta/Csp/Permissions/appMeta(), #[RendersApp], Library enum (Tailwind, Alpine), and host theming via CSS variables. Use whenever the user mentions MCP apps, MCP UI, interactive MCP resources, styling MCP apps with Tailwind or Alpine, or building visual interfaces for AI agents."
+license: MIT
+metadata:
+  author: crustum
+---
+# MCP Development
+
+**Alpha** — prefer package `docs/index.md` over the README. APIs may still move. There is no Ignis `search-docs` tool for MCP.
+
+## Documentation
+
+Read package `docs/index.md` for detailed CakePHP MCP patterns.
+
+For MCP UI apps (interactive HTML resources), read `references/app.md` — it covers the full architecture, host theming CSS variables, tool-to-UI linking patterns, library scripts (Tailwind, Alpine via `Library`), and real-world examples.
+
+## Basic Usage
+
+Register MCP servers in `config/mcp.php` under `Mcp.Servers` (HTTP) and `Mcp.local` (STDIO), or via `Registrar::web()` / `local()` per docs.
+
+```bash
+composer require crustum/mcp
+{{ assist.cakeCommand('plugin load Crustum/Mcp') }}
+{{ assist.cakeCommand('manifest install --plugin Crustum/Mcp') }}
+```
+
+### Creating MCP Primitives
+
+```bash
+{{ assist.cakeCommand('bake mcp_tool ToolName') }}
+{{ assist.cakeCommand('bake mcp_resource ResourceName') }}
+{{ assist.cakeCommand('bake mcp_prompt PromptName') }}
+{{ assist.cakeCommand('bake mcp_server ServerName') }}
+{{ assist.cakeCommand('bake mcp_app_resource DashboardApp') }}
+```
+
+After creating primitives, register them in your server's `$tools`, `$resources`, or `$prompts` properties. Host namespaces (default): `App\Mcp\Servers|Tools|Prompts|Resources`.
+
+### Tools
+
+@ignissnippet("MCP Tool Example", "php")
+use Crustum\Mcp\Request;
+use Crustum\Mcp\Response;
+use Crustum\Mcp\Server\Tool;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+
+class MyTool extends Tool
+{
+    protected string $description = 'Describe what this tool does';
+
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'name' => $schema->string()->description('The name parameter')->required(),
+        ];
+    }
+
+    public function handle(Request $request): Response
+    {
+        $request->validate(['name' => 'required|string']);
+
+        return Response::text('Hello, '.$request->get('name'));
+    }
+}
+@endignissnippet
+
+`JsonSchema` comes from the `illuminate/json-schema` dependency (tool input/output schema builder).
+
+### Registering Primitives in a Server
+
+@ignissnippet("Register Primitives in MCP Server", "php")
+use Crustum\Mcp\Server;
+
+class AppServer extends Server
+{
+    protected array $tools = [
+        \App\Mcp\Tools\MyTool::class,
+    ];
+
+    protected array $resources = [
+        \App\Mcp\Resources\MyResource::class,
+    ];
+
+    protected array $prompts = [
+        \App\Mcp\Prompts\MyPrompt::class,
+    ];
+}
+@endignissnippet
+
+Expose the server via `Mcp.Servers` / `Mcp.local` in `config/mcp.php` (or `Registrar::web()` / `local()`).
+
+## MCP UI Apps
+
+For MCP UI apps, read `references/app.md` — it covers quick start examples, full architecture, AppMeta/Csp/Permissions, `#[RendersApp]` tool linking, library scripts (Tailwind/Alpine via `Library`), host theming CSS variables, and real-world patterns.
+
+UI shell: `Response::view('Mcp/...', $data, [], 'Crustum/Mcp.mcp_app')`.
+
+## Verification
+
+1. Check `config/mcp.php` → `Mcp.Servers` / `Mcp.local` for proper registration
+2. Test tool via MCP client / `{{ assist.cakeCommand('mcp inspector') }}`
+
+## Common Pitfalls
+
+- Running `{{ assist.cakeCommand('mcp start …') }}` in a normal terminal — it hangs waiting for STDIO JSON-RPC (MCP clients own the process)
+- Using HTTPS locally with Node-based MCP clients / inspector — prefer HTTP in local dev
+- Guessing APIs from memory — prefer package `docs/index.md` (no Ignis MCP `search-docs` tool)
+- Not registering web servers in `config/mcp.php` → `Mcp.Servers` (or `Registrar::web`)
+- Duplicating registration by hand in routes/bootstrap when `Mcp.Servers` / `Mcp.local` already cover it — the registrar loads those entries automatically
+- OAuth for native desktop clients (`cursor://`, `vscode://`, …) — add allowed schemes under `Mcp.custom_schemes` in `config/mcp.php`
+- Baking primitives but leaving them off the server `$tools` / `$resources` / `$prompts` arrays
+- Tools that take arguments without a matching `schema()`

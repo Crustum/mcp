@@ -1,0 +1,26 @@
+# CakePHP MCP
+
+Prefer `docs/index.md` and the `mcp-development` skill. **Alpha** — APIs may change.
+
+@scoped(['config/mcp.php'])
+## MCP config
+- Register web/local servers and transports here (`Mcp.Servers` / `Mcp.local`) after bake.
+- Keep OAuth / middleware settings aligned with Tessera docs when enabling remote auth.
+@endscoped
+
+@scoped(['src/Mcp/Servers/**', 'src/Mcp/Tools/**', 'src/Mcp/Prompts/**', 'src/Mcp/Resources/**'])
+## MCP primitives
+- Bake via `mcp_server` / `mcp_tool` / `mcp_prompt` / `mcp_resource` / `mcp_app_resource`.
+- Wire classes on the server `$tools` / `$prompts` / `$resources` arrays.
+- Tools need `schema` + `handle`; use `shouldRegister()` for conditional exposure; prefer `Response::*` factories.
+@endscoped
+
+@scoped(['templates/Mcp/**', 'templates/**/mcp/**'])
+## MCP app templates
+- Keep AppResource templates in sync with the baked PHP class; follow Apps docs for `ui://` resources.
+@endscoped
+
+@scoped(['tests/**'])
+## MCP tests
+- Prefer server test helpers / inspector over inventing fake MCP transports.
+@endscoped

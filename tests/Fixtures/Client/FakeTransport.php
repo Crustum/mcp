@@ -1,0 +1,73 @@
+<?php
+declare(strict_types=1);
+
+namespace Crustum\Mcp\Test\Fixtures\Client;
+
+use Crustum\Mcp\Client\Contracts\Transport;
+
+class FakeTransport implements Transport
+{
+    public bool $connected = false;
+
+    /**
+     * @var array<int, string>
+     */
+    public array $sent = [];
+
+    /**
+     * @var array<int, string>
+     */
+    public array $responses = [];
+
+    public ?string $repeatResponse = null;
+
+    public float $timeoutSeconds = 30.0;
+
+    public ?string $protocolVersion = null;
+
+    public function connect(): void
+    {
+        $this->connected = true;
+    }
+
+    public function disconnect(): void
+    {
+        $this->connected = false;
+    }
+
+    public function send(string $message): void
+    {
+        $this->sent[] = $message;
+    }
+
+    public function setTimeoutSeconds(float $seconds): void
+    {
+        $this->timeoutSeconds = $seconds;
+    }
+
+    public function setProtocolVersion(string $version): void
+    {
+        $this->protocolVersion = $version;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function recipe(): array
+    {
+        return ['driver' => 'fake'];
+    }
+
+    public function receive(): string
+    {
+        if ($this->responses === []) {
+            if ($this->repeatResponse !== null) {
+                return $this->repeatResponse;
+            }
+
+            throw new RuntimeException('No queued responses in FakeTransport.');
+        }
+
+        return array_shift($this->responses);
+    }
+}

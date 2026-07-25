@@ -1,0 +1,24 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Crustum\Mcp\Server;
+use Crustum\Mcp\Server\Attributes\Instructions;
+use Crustum\Mcp\Server\Attributes\Name;
+use Crustum\Mcp\Server\Attributes\Version;
+
+#[Name('{{ serverDisplayName }}')]
+#[Version('0.0.1')]
+#[Instructions('Instructions describing how to use the server and its features.')]
+class {{ class }} extends Server
+{
+    public array $tools = [
+    ];
+
+    public array $resources = [
+    ];
+
+    public array $prompts = [
+    ];
+}

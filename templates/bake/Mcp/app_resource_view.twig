@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * MCP App Resource view bake output.
+ *
+ * @var \Cake\View\View $this
+ * @var string $title
+ */
+$this->start('mcpHead');
+?>
+<script type="module">
+createMcpApp(async (app) => {
+    document.getElementById('run-btn').addEventListener('click', async () => {
+        const result = await app.callServerTool('tool-name', {});
+        document.getElementById('output').textContent = result.content[0]?.text ?? '';
+    });
+});
+</script>
+<?php
+$this->end();
+?>
+<div id="app">
+    <button id="run-btn">Run</button>
+    <p id="output"></p>
+</div>

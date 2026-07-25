@@ -1,0 +1,28 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Crustum\Mcp\Request;
+use Crustum\Mcp\Response;
+use Crustum\Mcp\Server\AppResource;
+use Crustum\Mcp\Server\Attributes\AppMeta;
+use Crustum\Mcp\Server\Attributes\Description;
+
+#[Description('A description of what this app resource does.')]
+#[AppMeta]
+class {{ class }} extends AppResource
+{
+    /**
+     * Handle the app resource request.
+     *
+     * @param \Crustum\Mcp\Request $request MCP request
+     * @return \Crustum\Mcp\Response
+     */
+    public function handle(Request $request): Response
+    {
+        return Response::view('{{ viewTemplate }}', [
+            'title' => $this->title(),
+        ], [], 'Crustum/Mcp.mcp_app');
+    }
+}

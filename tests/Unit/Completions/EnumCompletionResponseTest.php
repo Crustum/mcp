@@ -1,0 +1,48 @@
+<?php
+declare(strict_types=1);
+
+use Crustum\Mcp\Server\Completions\DirectCompletionResponse;
+use Crustum\Mcp\Server\Completions\EnumCompletionResponse;
+
+enum BackedEnumForTest: string
+{
+    case One = 'value-one';
+    case Two = 'value-two';
+    case Three = 'value-three';
+}
+
+enum PlainEnumForTest
+{
+    case Active;
+    case Inactive;
+    case Pending;
+}
+
+it('extracts backed enum values', function (): void {
+    $result = new EnumCompletionResponse(BackedEnumForTest::class);
+
+    $resolved = $result->resolve('');
+
+    expect($resolved)->toBeInstanceOf(DirectCompletionResponse::class)
+        ->and($resolved->values())->toBe(['value-one', 'value-two', 'value-three']);
+});
+
+it('extracts non-backed enum names', function (): void {
+    $result = new EnumCompletionResponse(PlainEnumForTest::class);
+
+    $resolved = $result->resolve('');
+
+    expect($resolved->values())->toBe(['Active', 'Inactive', 'Pending']);
+});
+
+it('filters enum values by prefix', function (): void {
+    $result = new EnumCompletionResponse(BackedEnumForTest::class);
+
+    $resolved = $result->resolve('value-t');
+
+    expect($resolved->values())->toBe(['value-two', 'value-three']);
+});
+
+it('throws exception for invalid enum class', function (): void {
+    new EnumCompletionResponse('NotAnEnum');
+})->throws(InvalidArgumentException::class, 'is not an enum');

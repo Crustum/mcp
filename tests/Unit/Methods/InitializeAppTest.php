@@ -1,0 +1,59 @@
+<?php
+declare(strict_types=1);
+
+use Crustum\Mcp\Request;
+use Crustum\Mcp\Response;
+use Crustum\Mcp\Server;
+use Crustum\Mcp\Server\AppResource;
+use Crustum\Mcp\Server\Resource;
+use Crustum\Mcp\Test\Fixtures\ArrayTransport;
+
+it('auto-detects ui capability when ui resources are registered', function (): void {
+    $server = new class (new ArrayTransport()) extends Server
+    {
+        protected array $resources = [
+            AutoDetectAppResource::class,
+        ];
+    };
+
+    $server->start();
+
+    $context = $server->createContext();
+
+    expect($context->serverCapabilities)->toHaveKey('io.modelcontextprotocol/ui');
+});
+
+it('does not include ui capability when only regular resources are registered', function (): void {
+    $server = new class (new ArrayTransport()) extends Server
+    {
+        protected array $resources = [
+            RegularResource::class,
+        ];
+    };
+
+    $server->start();
+
+    $context = $server->createContext();
+
+    expect($context->serverCapabilities)->not->toHaveKey('io.modelcontextprotocol/ui');
+});
+
+class AutoDetectAppResource extends AppResource
+{
+    public function handle(Request $request): Response
+    {
+        return Response::text('<html></html>');
+    }
+}
+
+class RegularResource extends Resource
+{
+    protected string $uri = 'file://resources/regular';
+
+    protected string $mimeType = 'text/plain';
+
+    public function handle(): string
+    {
+        return 'plain content';
+    }
+}
