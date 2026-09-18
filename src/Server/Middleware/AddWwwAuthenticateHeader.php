@@ -17,6 +17,8 @@ class AddWwwAuthenticateHeader implements MiddlewareInterface
     /**
      * Process the request and enrich 401 responses with authentication metadata.
      *
+     * Only acts on MCP routes (paths starting with /mcp/ or named routes matching mcp.*).
+     *
      * @param \Psr\Http\Message\ServerRequestInterface $request Incoming request
      * @param \Psr\Http\Server\RequestHandlerInterface $handler Request handler
      * @return \Psr\Http\Message\ResponseInterface
@@ -26,6 +28,10 @@ class AddWwwAuthenticateHeader implements MiddlewareInterface
         $response = $handler->handle($request);
 
         if ($response->getStatusCode() !== 401) {
+            return $response;
+        }
+
+        if (!$this->isMcpRoute($request)) {
             return $response;
         }
 
@@ -48,5 +54,30 @@ class AddWwwAuthenticateHeader implements MiddlewareInterface
             'WWW-Authenticate',
             'Bearer realm="mcp", error="invalid_token"',
         );
+    }
+
+    /**
+     * Check whether the request targets an MCP route.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request Incoming request
+     * @return bool
+     */
+    private function isMcpRoute(ServerRequestInterface $request): bool
+    {
+        $path = $request->getUri()->getPath();
+
+        if (str_starts_with($path, '/mcp/')) {
+            return true;
+        }
+
+        $route = $request->getAttribute('route');
+
+        if ($route === null) {
+            return false;
+        }
+
+        $name = $route->getName() ?? '';
+
+        return str_starts_with($name, 'mcp.');
     }
 }

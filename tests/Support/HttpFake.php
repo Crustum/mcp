@@ -167,6 +167,57 @@ class HttpFake
     }
 
     /**
+     * Assert the exact number of recorded HTTP requests.
+     *
+     * @param int $count Expected request count
+     * @return void
+     */
+    public static function assertSentCount(int $count): void
+    {
+        $actual = count(static::$recorded);
+
+        if ($actual !== $count) {
+            throw new AssertionFailedError(
+                sprintf('Expected %d HTTP requests to be recorded but found %d.', $count, $actual),
+            );
+        }
+    }
+
+    /**
+     * Assert requests matched the callbacks in the recorded order.
+     *
+     * @param array<int, callable(\Crustum\Mcp\Test\Support\HttpFakeRequest): bool> $callbacks Ordered request matchers
+     * @return void
+     */
+    public static function assertSentInOrder(array $callbacks): void
+    {
+        $remaining = $callbacks;
+        $index = 0;
+
+        foreach (static::$recorded as $request) {
+            if ($remaining === []) {
+                break;
+            }
+
+            if ($remaining[0]($request)) {
+                array_shift($remaining);
+            }
+
+            $index++;
+        }
+
+        if ($remaining !== []) {
+            throw new AssertionFailedError(
+                sprintf(
+                    'Expected %d HTTP requests in order but only matched %d.',
+                    count($callbacks),
+                    count($callbacks) - count($remaining),
+                ),
+            );
+        }
+    }
+
+    /**
      * Register a mock response for all HTTP methods.
      *
      * @param string $url URL or wildcard pattern

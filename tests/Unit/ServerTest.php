@@ -14,19 +14,187 @@ use Crustum\Mcp\Test\Fixtures\ThrowingMethodHandler;
 use Crustum\Mcp\Transport\JsonRpcRequest;
 use Crustum\Mcp\Transport\JsonRpcResponse;
 
-it('can handle an initialize message', function (): void {
+it('answers the legacy initialize handshake', function (): void {
     $transport = new ArrayTransport();
     $server = new ExampleServer($transport);
 
     $server->start();
 
-    $payload = json_encode(initializeMessage());
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 456,
+        'method' => 'initialize',
+        'params' => ['protocolVersion' => '2025-06-18'],
+    ]);
 
     ($transport->handler)($payload);
 
     $response = json_decode((string)$transport->sent[0], true);
 
-    expect($response)->toEqual(expectedInitializeResponse());
+    expect($response['id'])->toBe(456)
+        ->and($response['result']['protocolVersion'])->toBe('2025-06-18')
+        ->and($response['result']['serverInfo']['name'])->toBe('CakePHP MCP Server')
+        ->and($response['result'])->toHaveKeys(['capabilities', 'instructions']);
+});
+
+it('falls back to the latest legacy version for an unknown initialize version', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 456,
+        'method' => 'initialize',
+        'params' => ['protocolVersion' => '2024-11-05'],
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect(json_decode((string)$transport->sent[0], true)['result']['protocolVersion'])->toBe('2025-11-25');
+});
+
+it('falls back to the latest legacy version for a malformed initialize version', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 456,
+        'method' => 'initialize',
+        'params' => ['protocolVersion' => 1],
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect(json_decode((string)$transport->sent[0], true)['result']['protocolVersion'])->toBe('2025-11-25');
+});
+
+it('serves a legacy request without protocol metadata', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => []]);
+
+    ($transport->handler)($payload);
+
+    expect(json_decode((string)$transport->sent[0], true)['result']['tools'])->not->toBeEmpty();
+});
+
+it('can handle a discover message', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode(discoverMessage());
+
+    ($transport->handler)($payload);
+
+    $response = json_decode((string)$transport->sent[0], true);
+
+    expect($response)->toEqual(expectedDiscoverResponse());
+});
+
+it('rejects a request without the required protocol metadata', function (array $meta, string $message): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'tools/list',
+        'params' => ['_meta' => $meta],
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect(json_decode((string)$transport->sent[0], true))->toEqual([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'error' => [
+            'code' => -32602,
+            'message' => $message,
+        ],
+    ]);
+})->with([
+    'missing version' => [
+        ['io.modelcontextprotocol/clientCapabilities' => []],
+        'Invalid params: The request [_meta] is missing the required [io.modelcontextprotocol/protocolVersion] member.',
+    ],
+    'missing capabilities' => [
+        ['io.modelcontextprotocol/protocolVersion' => '2026-07-28'],
+        'Invalid params: The request [_meta] is missing the required [io.modelcontextprotocol/clientCapabilities] member.',
+    ],
+    'null version' => [
+        [
+            'io.modelcontextprotocol/protocolVersion' => null,
+            'io.modelcontextprotocol/clientCapabilities' => [],
+        ],
+        'Invalid params: The request [_meta] is missing the required [io.modelcontextprotocol/protocolVersion] member.',
+    ],
+    'non-string version' => [
+        [
+            'io.modelcontextprotocol/protocolVersion' => 123,
+            'io.modelcontextprotocol/clientCapabilities' => [],
+        ],
+        'Invalid params: The request [_meta] is missing the required [io.modelcontextprotocol/protocolVersion] member.',
+    ],
+    'non-array capabilities' => [
+        [
+            'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities' => 'nope',
+        ],
+        'Invalid params: The request [_meta] is missing the required [io.modelcontextprotocol/clientCapabilities] member.',
+    ],
+    'list capabilities' => [
+        [
+            'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities' => ['elicitation'],
+        ],
+        'Invalid params: The request [_meta] is missing the required [io.modelcontextprotocol/clientCapabilities] member.',
+    ],
+]);
+
+it('rejects an unsupported protocol version', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'tools/list',
+        'params' => [
+            '_meta' => [
+                'io.modelcontextprotocol/protocolVersion' => '2025-11-25',
+                'io.modelcontextprotocol/clientCapabilities' => [],
+            ],
+        ],
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect(json_decode((string)$transport->sent[0], true))->toEqual([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'error' => [
+            'code' => -32022,
+            'message' => 'Unsupported protocol version',
+            'data' => [
+                'supported' => ['2026-07-28'],
+                'requested' => '2025-11-25',
+            ],
+        ],
+    ]);
 });
 
 it('can add a capability', function (): void {
@@ -38,7 +206,7 @@ it('can add a capability', function (): void {
 
     $server->start();
 
-    $payload = json_encode(initializeMessage());
+    $payload = json_encode(discoverMessage());
 
     ($transport->handler)($payload);
 
@@ -112,7 +280,7 @@ it('can handle an unknown method', function (): void {
         'jsonrpc' => '2.0',
         'id' => 789,
         'method' => 'unknown/method',
-        'params' => [],
+        'params' => ['_meta' => protocolMeta()],
     ]);
 
     ($transport->handler)($payload);
@@ -157,6 +325,7 @@ it('returns protocol errors for invalid parameter shapes', function (mixed $para
     'tool arguments' => [[
         'name' => 'say-hi-tool',
         'arguments' => 'invalid',
+        '_meta' => protocolMeta(),
     ], 'Invalid params: The [arguments] member must be an object.'],
 ]);
 
@@ -197,7 +366,7 @@ it('can handle a custom method message', function (): void {
         'jsonrpc' => '2.0',
         'id' => 12345,
         'method' => 'custom/method',
-        'params' => [],
+        'params' => ['_meta' => protocolMeta()],
     ]);
 
     ($transport->handler)($payload);
@@ -209,24 +378,114 @@ it('can handle a custom method message', function (): void {
         'jsonrpc' => '2.0',
         'id' => 12345,
         'result' => [
+            'resultType' => 'complete',
             'message' => 'Custom method executed successfully!',
+            '_meta' => [
+                'io.modelcontextprotocol/serverInfo' => [
+                    'name' => 'CakePHP MCP Server',
+                    'version' => '0.0.1',
+                ],
+            ],
         ],
     ]);
 });
 
-it('can handle a ping message', function (): void {
+it('keeps the result type and metadata a method supplied itself', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->addMethod('custom/method', OpinionatedMethodHandler::class);
+
+    $this->instance(OpinionatedMethodHandler::class, new OpinionatedMethodHandler());
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 1,
+        'method' => 'custom/method',
+        'params' => ['_meta' => protocolMeta()],
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect(json_decode((string)$transport->sent[0], true)['result'])->toEqual([
+        'resultType' => 'input_required',
+        '_meta' => [
+            'io.modelcontextprotocol/serverInfo' => [
+                'name' => 'CakePHP MCP Server',
+                'version' => '0.0.1',
+            ],
+            'app/trace' => 'abc',
+        ],
+    ]);
+});
+
+it('answers a legacy ping message', function (): void {
     $transport = new ArrayTransport();
     $server = new ExampleServer($transport);
 
     $server->start();
 
-    $payload = json_encode(pingMessage());
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 789,
+        'method' => 'ping',
+    ]);
 
     ($transport->handler)($payload);
 
     $response = json_decode((string)$transport->sent[0], true);
 
-    expect($response)->toEqual(expectedPingResponse());
+    expect($response['id'])->toBe(789)
+        ->and($response)->not->toHaveKey('error')
+        ->and($response['result'])->toBeArray();
+});
+
+it('lets addMethod override the built-in initialize handler', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->addMethod('initialize', CustomMethodHandler::class);
+
+    $this->instance(CustomMethodHandler::class, new CustomMethodHandler());
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 456,
+        'method' => 'initialize',
+        'params' => ['_meta' => protocolMeta()],
+    ]);
+
+    ($transport->handler)($payload);
+
+    $response = json_decode((string)$transport->sent[0], true);
+
+    expect($response['result']['message'])->toBe('Custom method executed successfully!');
+});
+
+it('discovers an empty capability set as a json object', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    (function (): void {
+        $this->capabilities = [];
+    })->call($server);
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => 456,
+        'method' => 'server/discover',
+        'params' => ['_meta' => protocolMeta()],
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect((string)$transport->sent[0])->toContain('"capabilities":{}');
 });
 
 it('calls boot method on connect', function (): void {
@@ -273,7 +532,7 @@ it('handles capability with non-array existing value', function (): void {
 
     $server->start();
 
-    $payload = json_encode(initializeMessage());
+    $payload = json_encode(discoverMessage());
 
     ($transport->handler)($payload);
 
@@ -308,7 +567,7 @@ it('handles exceptions in debug mode', function (): void {
         'jsonrpc' => '2.0',
         'id' => 999,
         'method' => 'test/method',
-        'params' => [],
+        'params' => ['_meta' => protocolMeta()],
     ]);
 
     expect(function () use ($transport, $payload): void {
@@ -341,7 +600,7 @@ it('handles exceptions in production mode', function (): void {
         'jsonrpc' => '2.0',
         'id' => 999,
         'method' => 'test/method',
-        'params' => [],
+        'params' => ['_meta' => protocolMeta()],
     ]);
 
     ($transport->handler)($payload);
@@ -411,5 +670,16 @@ class MixedIconServer extends Server
     protected function icons(): array
     {
         return [new Icon('https://example.com/from-method.png')];
+    }
+}
+
+class OpinionatedMethodHandler implements Method
+{
+    public function handle(JsonRpcRequest $request, ServerContext $context): JsonRpcResponse
+    {
+        return JsonRpcResponse::result($request->id, [
+            'resultType' => 'input_required',
+            '_meta' => ['app/trace' => 'abc'],
+        ]);
     }
 }

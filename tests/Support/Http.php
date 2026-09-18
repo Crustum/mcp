@@ -75,4 +75,26 @@ final class Http
     {
         HttpFake::assertNothingSent();
     }
+
+    /**
+     * Assert the exact number of recorded HTTP requests.
+     *
+     * @param int $count Expected request count
+     * @return void
+     */
+    public static function assertSentCount(int $count): void
+    {
+        HttpFake::assertSentCount($count);
+    }
+
+    /**
+     * Assert requests matched the callbacks in the recorded order.
+     *
+     * @param array<int, callable(\Crustum\Mcp\Test\Support\HttpFakeRequest): bool> $callbacks Ordered request matchers
+     * @return void
+     */
+    public static function assertSentInOrder(array $callbacks): void
+    {
+        HttpFake::assertSentInOrder($callbacks);
+    }
 }

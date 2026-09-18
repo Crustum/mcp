@@ -24,19 +24,6 @@ class ArrayTransport implements Transport
     public array $sent = [];
 
     /**
-     * @var string|null
-     */
-    public ?string $sessionId = null;
-
-    /**
-     * Create a new array transport.
-     */
-    public function __construct()
-    {
-        $this->sessionId = bin2hex(random_bytes(16));
-    }
-
-    /**
      * @inheritDoc
      */
     public function onReceive(Closure $handler): void
@@ -55,17 +42,9 @@ class ArrayTransport implements Transport
     /**
      * @inheritDoc
      */
-    public function send(string $message, ?string $sessionId = null): void
+    public function send(string $message): void
     {
         $this->sent[] = $message;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function sessionId(): ?string
-    {
-        return $this->sessionId;
     }
 
     /**

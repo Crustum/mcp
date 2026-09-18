@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Controller;
 
 use Cake\Http\Response;
-use Cake\Utility\Text;
 use Crustum\Mcp\Server\Registrar;
 use Crustum\Mcp\Server\Transport\HttpTransport;
 use Crustum\Mcp\Server\WebServerRegistration;
@@ -31,13 +30,7 @@ class ServerController extends AppController
             return $this->response->withStatus(404);
         }
 
-        $sessionId = $this->request->getHeaderLine('MCP-Session-Id');
-
-        if ($sessionId === '') {
-            $sessionId = Text::uuid();
-        }
-
-        $transport = new HttpTransport($this->request, $sessionId);
+        $transport = new HttpTransport($this->request);
         $server = new $registration->serverClass($transport);
         $server->start();
 

@@ -4,11 +4,10 @@ declare(strict_types=1);
 namespace TestApp;
 
 use Bake\BakePlugin;
-use Cake\Core\Plugin;
 use Cake\Http\BaseApplication;
 use Cake\Http\MiddlewareQueue;
+use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\Routing\RouteBuilder;
-use Crustum\Mcp\McpPlugin;
 use Override;
 
 /**
@@ -22,15 +21,8 @@ class Application extends BaseApplication
     #[Override]
     public function bootstrap(): void
     {
-        // Avoid BaseApplication::bootstrap() re-including host config;
-        // TestApp only needs Bake + Mcp for console command integration tests.
-        if (!Plugin::isLoaded('Bake')) {
-            $this->addPlugin(BakePlugin::class);
-        }
-
-        if (!Plugin::isLoaded('Mcp')) {
-            $this->addPlugin(McpPlugin::class);
-        }
+        $this->addPlugin(BakePlugin::class);
+        $this->addPlugin('Crustum/Mcp', ['bootstrap' => true, 'routes' => true]);
     }
 
     /**
@@ -49,6 +41,6 @@ class Application extends BaseApplication
     #[Override]
     public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
     {
-        return $middlewareQueue;
+        return $middlewareQueue->add(new RoutingMiddleware($this));
     }
 }

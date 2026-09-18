@@ -41,7 +41,7 @@ class UriTemplate implements Stringable
      *
      * @var list<string>
      */
-    private array $variableNames = [];
+    private array $variableNames;
 
     /**
      * Compiled regex pattern.

@@ -13,12 +13,12 @@ use Psr\Http\Message\ServerRequestInterface;
 class StdioTransport implements Transport
 {
     /**
-     * @param string $sessionId MCP session identifier
      * @param (\Closure(string): void)|null $handler Message handler
+     * @param resource|null $output Output stream, STDOUT when null
      */
     public function __construct(
-        protected string $sessionId,
         protected ?Closure $handler = null,
+        protected $output = null,
     ) {
     }
 
@@ -33,9 +33,9 @@ class StdioTransport implements Transport
     /**
      * @inheritDoc
      */
-    public function send(string $message, ?string $sessionId = null): void
+    public function send(string $message): void
     {
-        fwrite(STDOUT, $message . PHP_EOL);
+        fwrite($this->output ?? STDOUT, $message . PHP_EOL);
     }
 
     /**
@@ -60,14 +60,6 @@ class StdioTransport implements Transport
         }
 
         return null;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function sessionId(): ?string
-    {
-        return $this->sessionId;
     }
 
     /**

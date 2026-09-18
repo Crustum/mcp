@@ -4,14 +4,8 @@ declare(strict_types=1);
 use Crustum\Mcp\Server\Contracts\Transport;
 use Crustum\Mcp\Server\Transport\StdioTransport;
 
-it('creates stdio transport with session id', function (): void {
-    $transport = new StdioTransport('test-session-123');
-
-    expect($transport->sessionId())->toBe('test-session-123');
-});
-
 it('sets receive handler', function (): void {
-    $transport = new StdioTransport('test-session');
+    $transport = new StdioTransport();
 
     $handlerCalled = false;
     $handler = function (string $message) use (&$handlerCalled): void {
@@ -26,8 +20,21 @@ it('sets receive handler', function (): void {
     expect($property->getValue($transport))->toBe($handler);
 });
 
+it('sends message to stdout', function (): void {
+    $stream = fopen('php://memory', 'r+');
+    $transport = new StdioTransport(output: $stream);
+
+    $transport->send('{"test": "message"}');
+
+    rewind($stream);
+
+    expect(stream_get_contents($stream))->toBe('{"test": "message"}' . PHP_EOL);
+
+    fclose($stream);
+});
+
 it('executes stream callback', function (): void {
-    $transport = new StdioTransport('test-session');
+    $transport = new StdioTransport();
 
     $streamExecuted = false;
     $stream = function () use (&$streamExecuted): void {
@@ -40,7 +47,7 @@ it('executes stream callback', function (): void {
 });
 
 it('handles run method with handler', function (): void {
-    $transport = new StdioTransport('test-session');
+    $transport = new StdioTransport();
 
     $messages = [];
     $handler = function (string $message) use (&$messages): void {
@@ -61,7 +68,7 @@ it('handles run method with handler', function (): void {
 });
 
 it('implements transport interface', function (): void {
-    $transport = new StdioTransport('test-session');
+    $transport = new StdioTransport();
 
     expect($transport)->toBeInstanceOf(Transport::class);
 });

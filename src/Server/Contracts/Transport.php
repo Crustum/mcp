@@ -31,17 +31,9 @@ interface Transport
      * Send a serialized JSON-RPC message.
      *
      * @param string $message Serialized JSON-RPC message
-     * @param string|null $sessionId Optional MCP session identifier
      * @return void
      */
-    public function send(string $message, ?string $sessionId = null): void;
-
-    /**
-     * Get the active MCP session identifier.
-     *
-     * @return string|null
-     */
-    public function sessionId(): ?string;
+    public function send(string $message): void;
 
     /**
      * Register a streaming callback for outbound messages.

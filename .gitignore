@@ -31,6 +31,7 @@ Thumbs.db
 /coverage/
 .phpunit.cache/
 clover.xml
+/phpunit.xml
 *.coverage
 
 # Build artifacts
@@ -56,3 +57,7 @@ composer.lock
 package-lock.json
 yarn.lock
 redis.stub.php
+
+# opencode
+/.opencode/
+/tools

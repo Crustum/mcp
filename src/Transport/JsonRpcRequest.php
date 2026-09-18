@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Transport;
 
 use Crustum\Mcp\Contracts\Arrayable;
+use Crustum\Mcp\Enums\MetaKey;
+use Crustum\Mcp\Enums\RequestHeader;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Request;
 
@@ -20,13 +22,11 @@ class JsonRpcRequest implements Arrayable
      * @param string|int $id Request identifier
      * @param string $method Request method name
      * @param array<string, mixed> $params Request parameters
-     * @param string|null $sessionId MCP session identifier
      */
     public function __construct(
         public int|string $id,
         public string $method,
         public array $params,
-        public ?string $sessionId = null,
     ) {
     }
 
@@ -34,11 +34,10 @@ class JsonRpcRequest implements Arrayable
      * Create a request from a raw JSON-RPC payload.
      *
      * @param array{id: mixed, jsonrpc?: mixed, method?: mixed, params?: mixed} $jsonRequest Raw JSON-RPC payload
-     * @param string|null $sessionId MCP session identifier
      * @return self
      * @throws \Crustum\Mcp\Exception\JsonRpcException
      */
-    public static function from(array $jsonRequest, ?string $sessionId = null): self
+    public static function from(array $jsonRequest): self
     {
         $requestId = $jsonRequest['id'];
 
@@ -62,7 +61,6 @@ class JsonRpcRequest implements Arrayable
             id: $requestId,
             method: $jsonRequest['method'],
             params: $jsonRequest['params'] ?? [],
-            sessionId: $sessionId,
         );
     }
 
@@ -108,7 +106,82 @@ class JsonRpcRequest implements Arrayable
      */
     public function meta(): ?array
     {
-        return isset($this->params['_meta']) && is_array($this->params['_meta']) ? $this->params['_meta'] : null;
+        return isset($this->params['_meta']) && self::isObject($this->params['_meta']) ? $this->params['_meta'] : null;
+    }
+
+    /**
+     * Whether the request is a legacy client message without protocol metadata.
+     *
+     * A request carrying either the protocol version or the client capabilities
+     * member in its `_meta` is treated as a modern protocol request.
+     *
+     * @return bool
+     */
+    public function isLegacy(): bool
+    {
+        $meta = $this->meta() ?? [];
+
+        return !array_key_exists(MetaKey::PROTOCOL_VERSION->value, $meta)
+            && !array_key_exists(MetaKey::CLIENT_CAPABILITIES->value, $meta);
+    }
+
+    /**
+     * Get the headers this request mirrors onto the HTTP transport.
+     *
+     * @return array<string, string>
+     */
+    public function mirroredHeaders(): array
+    {
+        $headers = [RequestHeader::METHOD->value => $this->method];
+        $name = $this->name();
+
+        if ($name !== null) {
+            $headers[RequestHeader::NAME->value] = (string)new HeaderValue($name);
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Get the named target of the request when it references one.
+     *
+     * @return string|null
+     */
+    public function name(): ?string
+    {
+        $key = $this->nameKey();
+
+        if ($key === null) {
+            return null;
+        }
+
+        $name = $this->get($key);
+
+        return is_string($name) ? $name : null;
+    }
+
+    /**
+     * Whether the request references a named target that must be mirrored.
+     *
+     * @return bool
+     */
+    public function requiresName(): bool
+    {
+        return $this->nameKey() !== null;
+    }
+
+    /**
+     * Get the parameter key that names this request's target.
+     *
+     * @return string|null
+     */
+    private function nameKey(): ?string
+    {
+        return match ($this->method) {
+            'tools/call', 'prompts/get' => 'name',
+            'resources/read' => 'uri',
+            default => null,
+        };
     }
 
     /**
@@ -129,7 +202,7 @@ class JsonRpcRequest implements Arrayable
             $arguments = [];
         }
 
-        return new Request($arguments, $this->sessionId, $this->meta());
+        return new Request($arguments, $this->meta());
     }
 
     /**

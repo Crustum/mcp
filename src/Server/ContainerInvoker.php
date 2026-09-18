@@ -177,7 +177,6 @@ class ContainerInvoker
     protected function hydrateRequest(Request $request, Request $current): void
     {
         $request->setArguments($current->all());
-        $request->setSessionId($current->sessionId());
         $request->setMeta($current->meta());
         $request->setUri($current->uri());
         $request->setIdentity($current->getIdentity());

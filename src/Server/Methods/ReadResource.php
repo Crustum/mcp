@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Server\Methods;
 
+use Crustum\Mcp\Enums\ErrorCode;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\ResponseFactory;
@@ -41,7 +42,11 @@ class ReadResource implements Method
         try {
             $resource = $this->resolveResource($uri, $context);
         } catch (InvalidArgumentException $invalidArgumentException) {
-            throw new JsonRpcException($invalidArgumentException->getMessage(), -32002, $request->id);
+            throw new JsonRpcException(
+                $invalidArgumentException->getMessage(),
+                ErrorCode::INVALID_PARAMS->value,
+                $request->id,
+            );
         }
 
         $response = $this->callHandler(

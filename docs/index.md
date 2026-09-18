@@ -7,8 +7,10 @@
     - [Server Registration](#server-registration)
     - [Web Servers](#web-servers)
     - [Local Servers](#local-servers)
+    - [Cache Hints](#cache-hints)
 - [Tools](#tools)
     - [Creating Tools](#creating-tools)
+    - [Searchable Tool Catalogs](#searchable-tool-catalogs)
     - [Tool Input Schemas](#tool-input-schemas)
     - [Tool Output Schemas](#tool-output-schemas)
     - [Validating Tool Arguments](#validating-tool-arguments)
@@ -37,6 +39,7 @@
     - [Rendering Apps From Tools](#rendering-apps-from-tools)
     - [App Tool Visibility](#app-tool-visibility)
     - [App Configuration](#app-configuration)
+    - [Building Apps With Ignis](#building-apps-with-ignis)
 - [Metadata](#metadata)
 - [Icons](#icons)
 - [Authentication](#authentication)
@@ -205,7 +208,7 @@ class WeatherServer extends Server
      *
      * @var array<int, class-string<\Crustum\Mcp\Server\Tool>|\Crustum\Mcp\Server\Tool>
      */
-    public array $tools = [
+    protected array $tools = [
         // GetCurrentWeatherTool::class,
     ];
 
@@ -214,7 +217,7 @@ class WeatherServer extends Server
      *
      * @var array<int, class-string<\Crustum\Mcp\Server\Resource>|\Crustum\Mcp\Server\Resource>
      */
-    public array $resources = [
+    protected array $resources = [
         // WeatherGuidelinesResource::class,
     ];
 
@@ -223,7 +226,7 @@ class WeatherServer extends Server
      *
      * @var array<int, class-string<\Crustum\Mcp\Server\Prompt>|\Crustum\Mcp\Server\Prompt>
      */
-    public array $prompts = [
+    protected array $prompts = [
         // DescribeWeatherPrompt::class,
     ];
 }
@@ -234,7 +237,7 @@ The `#[Name]`, `#[Version]`, and `#[Instructions]` attributes advertise server m
 You may also register class instances instead of class strings when a primitive needs constructor arguments that the container does not resolve automatically:
 
 ```php
-public array $tools = [
+protected array $tools = [
     new CurrentWeatherTool($weatherRepository),
 ];
 ```
@@ -325,6 +328,62 @@ The `weather` argument is the local handle you registered. The command boots the
 > [!TIP]
 > The same `WeatherServer` class can be registered as both a web route and a local handle. That lets remote clients use HTTP while your IDE uses STDIO, without duplicating tools or resources.
 
+<a name="cache-hints"></a>
+### Cache Hints
+
+The plugin includes cache hints with responses that may be cached, such as server discovery, primitive listings, and resource reads. By default, these responses are marked as private with a time to live of zero milliseconds.
+
+You may customize the default cache hint for a server using the `Cacheable` attribute:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Mcp\Servers;
+
+use Crustum\Mcp\Enums\CacheScope;
+use Crustum\Mcp\Server;
+use Crustum\Mcp\Server\Attributes\Cacheable;
+
+#[Cacheable(ttlMs: 60_000, scope: CacheScope::Public)]
+class WeatherServer extends Server
+{
+    /**
+     * Get the cache hints for individual MCP methods.
+     *
+     * @return array<string, \Crustum\Mcp\Server\Attributes\Cacheable>
+     */
+    protected function cacheHints(): array
+    {
+        return [
+            'tools/list' => new Cacheable(ttlMs: 30_000, scope: CacheScope::Public),
+        ];
+    }
+}
+```
+
+The `CacheScope::Private` scope limits cached responses to the same authorization context, while `CacheScope::Public` allows responses to be shared between users. Cache hints are advisory; the MCP client or host determines whether a response is actually cached. Method-specific hints returned by `cacheHints` take precedence over the server's `Cacheable` attribute.
+
+You may override the server's cache hint for an individual resource by applying the `Cacheable` attribute to the resource class:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Mcp\Resources;
+
+use Crustum\Mcp\Enums\CacheScope;
+use Crustum\Mcp\Server\Attributes\Cacheable;
+use Crustum\Mcp\Server\Resource;
+
+#[Cacheable(ttlMs: 300_000, scope: CacheScope::Public)]
+class WeatherGuidelinesResource extends Resource
+{
+}
+```
+
+A resource's `Cacheable` attribute takes precedence over both the method-specific hint and the server's default hint.
+
 <a name="tools"></a>
 ## Tools
 
@@ -406,11 +465,52 @@ class WeatherServer extends Server
     /**
      * @var array<int, class-string<\Crustum\Mcp\Server\Tool>|\Crustum\Mcp\Server\Tool>
      */
-    public array $tools = [
+    protected array $tools = [
         CurrentWeatherTool::class,
     ];
 }
 ```
+
+<a name="searchable-tool-catalogs"></a>
+### Searchable Tool Catalogs
+
+Servers with many tools can place some tools in a searchable catalog instead of advertising every tool to the AI client. A searchable catalog exposes two tools: `search_tools`, which searches the catalog by tool name, description, and input schema; and `execute_tools`, which invokes one or more tools returned by a search.
+
+To create a searchable catalog, use the `ToolSearch` class as an array key in your server's `$tools` property:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Mcp\Servers;
+
+use App\Mcp\Tools\CurrentWeatherTool;
+use App\Mcp\Tools\HistoricalWeatherTool;
+use App\Mcp\Tools\WeatherAlertsTool;
+use Crustum\Mcp\Server;
+use Crustum\Mcp\Server\Tools\ToolSearch;
+
+class WeatherServer extends Server
+{
+    /**
+     * The tools registered with this MCP server.
+     *
+     * @var array<int|string, \Crustum\Mcp\Server\Tool|class-string<\Crustum\Mcp\Server\Tool>|array<int, \Crustum\Mcp\Server\Tool|class-string<\Crustum\Mcp\Server\Tool>>>
+     */
+    protected array $tools = [
+        CurrentWeatherTool::class,
+
+        ToolSearch::class => [
+            HistoricalWeatherTool::class,
+            WeatherAlertsTool::class,
+        ],
+    ];
+}
+```
+
+In this example, `CurrentWeatherTool` is advertised directly, while the historical weather and weather alert tools are available through the searchable catalog. Conditional tool registration is still respected when catalog tools are searched or executed.
+
+The maximum number of tools that may be executed in one `execute_tools` call and the maximum response size are controlled by the `Mcp.tool_search.max_tool_calls` and `Mcp.tool_search.max_output_bytes` configuration values.
 
 <a name="tool-name-title-description"></a>
 #### Tool Name, Title, and Description
@@ -489,7 +589,7 @@ The schema is advertised to MCP clients during `tools/list`. Clear descriptions 
 <a name="tool-output-schemas"></a>
 ### Tool Output Schemas
 
-Tools can define [output schemas](https://modelcontextprotocol.io/specification/2025-06-18/server/tools#output-schema) to specify the structure of their responses. This enables better integration with AI clients that need parseable tool results. Use the `outputSchema` method to define your tool's output structure:
+Tools can define [output schemas](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#output-schema) to specify the structure of their responses. This enables better integration with AI clients that need parseable tool results. Use the `outputSchema` method to define your tool's output structure:
 
 ```php
 <?php
@@ -642,7 +742,7 @@ class CurrentWeatherTool extends Tool
 <a name="tool-annotations"></a>
 ### Tool Annotations
 
-You may enhance your tools with [annotations](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations) to provide additional metadata to AI clients. These annotations help AI models understand the tool's behavior and capabilities. Annotations are added to tools via attributes:
+You may enhance your tools with [annotations](https://modelcontextprotocol.io/specification/2026-07-28/schema#toolannotations) to provide additional metadata to AI clients. These annotations help AI models understand the tool's behavior and capabilities. Annotations are added to tools via attributes:
 
 ```php
 <?php
@@ -727,7 +827,7 @@ When a tool's `shouldRegister` method returns `false`, it will not appear in the
 <a name="tool-responses"></a>
 ### Tool Responses
 
-Tools should return an instance of `Crustum\Mcp\Response` (or a `ResponseFactory`, an array of responses, a string, or a generator). The `Response` class provides several convenient methods for creating different types of responses.
+Tools must return an instance of `Crustum\Mcp\Response` (or a `ResponseFactory`, an array of responses, a string, or a generator). The `Response` class provides several convenient methods for creating different types of responses.
 
 For simple text responses, use the `text` method:
 
@@ -809,7 +909,7 @@ public function handle(Request $request): array
 <a name="structured-responses"></a>
 #### Structured Responses
 
-Tools can return [structured content](https://modelcontextprotocol.io/specification/2025-06-18/server/tools#structured-content) using the `structured` method. This provides parseable data for AI clients while maintaining backward compatibility with a JSON-encoded text representation:
+Tools can return [structured content](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content) using the `structured` method. This provides parseable data for AI clients while maintaining backward compatibility with a JSON-encoded text representation:
 
 ```php
 return Response::structured([
@@ -885,7 +985,7 @@ When using web-based servers, streaming responses automatically open an SSE (Ser
 <a name="prompts"></a>
 ## Prompts
 
-[Prompts](https://modelcontextprotocol.io/specification/2025-06-18/server/prompts) enable your server to share reusable prompt templates that AI clients can use to interact with language models. They provide a standardized way to structure common queries and interactions.
+[Prompts](https://modelcontextprotocol.io/specification/2026-07-28/server/prompts) enable your server to share reusable prompt templates that AI clients can use to interact with language models. They provide a standardized way to structure common queries and interactions.
 
 <a name="creating-prompts"></a>
 ### Creating Prompts
@@ -912,7 +1012,7 @@ class WeatherServer extends Server
     /**
      * @var array<int, class-string<\Crustum\Mcp\Server\Prompt>|\Crustum\Mcp\Server\Prompt>
      */
-    public array $prompts = [
+    protected array $prompts = [
         DescribeWeatherPrompt::class,
     ];
 }
@@ -1148,7 +1248,7 @@ You can use the `asAssistant()` method to indicate that a response message shoul
 <a name="resources"></a>
 ## Resources
 
-[Resources](https://modelcontextprotocol.io/specification/2025-06-18/server/resources) enable your server to expose data and content that AI clients can read and use as context when interacting with language models. They provide a way to share static or dynamic information like documentation, configuration, or any data that helps inform AI responses.
+[Resources](https://modelcontextprotocol.io/specification/2026-07-28/server/resources) enable your server to expose data and content that AI clients can read and use as context when interacting with language models. They provide a way to share static or dynamic information like documentation, configuration, or any data that helps inform AI responses.
 
 <a name="creating-resources"></a>
 ### Creating Resources
@@ -1175,7 +1275,7 @@ class WeatherServer extends Server
     /**
      * @var array<int, class-string<\Crustum\Mcp\Server\Resource>|\Crustum\Mcp\Server\Resource>
      */
-    public array $resources = [
+    protected array $resources = [
         WeatherGuidelinesResource::class,
     ];
 }
@@ -1206,7 +1306,7 @@ class WeatherGuidelinesResource extends Resource
 <a name="resource-templates"></a>
 ### Resource Templates
 
-[Resource templates](https://modelcontextprotocol.io/specification/2025-06-18/server/resources#resource-templates) enable your server to expose dynamic resources that match URI patterns with variables. Instead of defining a static URI for each resource, you can create a single resource that handles multiple URIs based on a template pattern.
+[Resource templates](https://modelcontextprotocol.io/specification/2026-07-28/server/resources#resource-templates) enable your server to expose dynamic resources that match URI patterns with variables. Instead of defining a static URI for each resource, you can create a single resource that handles multiple URIs based on a template pattern.
 
 <a name="creating-resource-templates"></a>
 #### Creating Resource Templates
@@ -1407,7 +1507,7 @@ class WeatherGuidelinesResource extends Resource
 <a name="resource-annotations"></a>
 ### Resource Annotations
 
-You may enhance your resources with [annotations](https://modelcontextprotocol.io/specification/2025-06-18/schema#resourceannotations) to provide additional metadata to AI clients:
+You may enhance your resources with [annotations](https://modelcontextprotocol.io/specification/2026-07-28/schema#annotations) to provide additional metadata to AI clients:
 
 ```php
 <?php
@@ -1469,7 +1569,7 @@ When a resource's `shouldRegister` method returns `false`, it will not appear in
 <a name="resource-responses"></a>
 ### Resource Responses
 
-Resources should return an instance of `Crustum\Mcp\Response`. For simple text content, use the `text` method:
+Resources must return an instance of `Crustum\Mcp\Response`. For simple text content, use the `text` method:
 
 ```php
 use Crustum\Mcp\Request;
@@ -1623,7 +1723,7 @@ class ShowWeatherDashboard extends Tool
 }
 ```
 
-The plugin automatically advertises the `io.modelcontextprotocol/ui` capability whenever any `AppResource` is registered, so no additional server configuration is required.
+The plugin automatically advertises the `io.modelcontextprotocol/ui` extension within the server's `extensions` capability whenever any `AppResource` is registered, so no additional server configuration is required.
 
 <a name="app-tool-visibility"></a>
 ### App Tool Visibility
@@ -1668,10 +1768,17 @@ The `Library` enum includes pre-configured CDN scripts for common front-end libr
 
 For computed or dynamic configuration, override the `appMeta` method on your resource using the fluent `AppMeta`, `Csp`, and `Permissions` builders from the `Crustum\Mcp\Server\Ui` namespace.
 
+<a name="building-apps-with-ignis"></a>
+### Building Apps With Ignis
+
+The plugin includes a dedicated Ignis skill reference for building MCP Apps at `resources/ignis/skills/mcp-development`. If your AI coding agent supports Ignis skills, it can invoke the `mcp-development` skill and ask it to scaffold an app resource, CakePHP template, and linked tool for you.
+
+For the complete protocol reference, including the full client-side API and schema details, see the official [MCP Apps documentation](https://modelcontextprotocol.io/extensions/apps/overview).
+
 <a name="metadata"></a>
 ## Metadata
 
-The plugin also supports the `_meta` field as defined in the [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18/basic#meta), which is required by certain MCP clients or integrations. Metadata can be applied to all MCP primitives, including tools, resources, and prompts, as well as their responses.
+The plugin also supports the `_meta` field as defined in the [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta), which is required by certain MCP clients or integrations. Metadata can be applied to all MCP primitives, including tools, resources, and prompts, as well as their responses.
 
 You can attach metadata to individual response content using the `withMeta` method:
 
@@ -1874,6 +1981,8 @@ Configure the authorization server issuer and optional endpoint overrides in `co
 
 Authorize and token endpoints typically live on Tessera (`/oauth/*`). MCP clients discover them through the well-known metadata served by the plugin.
 
+The plugin ships an opt-in consent template with OAuth client branding (`templates/Authorization/authorize.php`: `logo_uri` image with fallback, `client_uri` link). Nothing enables it automatically — opt in with `Tessera::authorizationView('Mcp.Authorization/authorize')`, or copy it to the host app at `templates/plugin/Tessera/Authorization/authorize.php` (the host override wins by Cake convention, zero code).
+
 > [!NOTE]
 > In many MCP deployments, OAuth is primarily used as a translation layer to an authenticated principal. The plugin advertises and uses a single `mcp:use` scope for MCP access.
 
@@ -1991,7 +2100,8 @@ $client->connect();
 $client->ping();
 
 if ($client->connected()) {
-    // ...
+    $capabilities = $client->capabilities();
+    $server = $client->serverInfo();
 }
 
 $client->disconnect();
@@ -2058,7 +2168,9 @@ ClientManager::getInstance()->registerClient(
 ```
 
 > [!NOTE]
-> The `clientId` and `clientSecret` arguments may be omitted when the MCP server supports [dynamic client registration](https://datatracker.ietf.org/doc/html/rfc7591), in which case the client registers itself automatically.
+> The `clientId` and `clientSecret` arguments may be omitted. The client will use a [Client ID Metadata Document](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents) when the authorization server supports them, falling back to [dynamic client registration](https://datatracker.ietf.org/doc/html/rfc7591) for legacy servers.
+
+The authorization server must advertise support for the `S256` PKCE code challenge method in its authorization server metadata. The client will reject the authorization attempt if PKCE support is not advertised.
 
 Next, register the OAuth routes for the named client using `Registrar::oAuthRoutesFor`. The closure you provide receives the client name and resulting `TokenSet` after the authorization code has been exchanged for an access token:
 
@@ -2078,7 +2190,32 @@ Registrar::getInstance()->oAuthRoutesFor(
 );
 ```
 
-This registers connect and callback routes for the named client. To begin the authorization flow, redirect the user to the connect route for that client.
+This registers three named routes: a connect route (`mcp.oauth.{client}.connect`) that redirects the user to the authorization server, a callback route (`mcp.oauth.{client}.callback`) that exchanges the authorization code and invokes your handler, and a public Client ID Metadata Document route (`mcp.oauth.{client}.client-metadata`). The connect and callback routes use the routes you pass to `oAuthRoutesFor` (apply your middleware via the `$middleware` argument); the metadata route stays public because the authorization server must be able to retrieve it.
+
+The metadata document describes your application as a public OAuth client and uses your application's full base URL (`App.fullBaseUrl`) to generate the client ID and callback URL. Therefore, you should ensure the full base URL is set correctly in production. You may customize the metadata route and provide additional metadata using the `clientMetadataUri` and `clientMetadata` arguments:
+
+```php
+use Cake\Http\Response;
+use Crustum\Mcp\Client\OAuth\TokenSet;
+use Crustum\Mcp\Server\Registrar;
+
+Registrar::getInstance()->oAuthRoutesFor(
+    $routes,
+    'github',
+    function (string $client, TokenSet $token): Response {
+        // Persist $token->accessToken for the current user...
+
+        return (new Response())->withLocation('/dashboard');
+    },
+    clientMetadataUri: 'mcp/oauth/github/client-metadata.json',
+    clientMetadata: [
+        'client_name' => 'Acme Weather Dashboard',
+        'logo_uri' => 'https://acme.com/logo.png',
+    ],
+);
+```
+
+To begin the authorization flow, redirect the user to the connect route for that client.
 
 The connect route accepts an optional `return_to` query parameter that is restored after the OAuth callback when your handler returns `null`. Prefer returning an explicit redirect from the handler (as in the example above) so production apps do not rely on an unvalidated `return_to` value. See [Production Hardening](#production-hardening).
 
@@ -2145,6 +2282,12 @@ foreach ($prompts as $prompt) {
 }
 ```
 
+The client automatically paginates through all available prompts. You may limit the number of prompts returned using the `limit` argument:
+
+```php
+$prompts = ClientManager::getInstance()->client('github')->prompts(limit: 10);
+```
+
 To retrieve a prompt, use the `getPrompt` method:
 
 ```php
@@ -2173,6 +2316,12 @@ foreach ($resources as $resource) {
     $resource->mimeType;
     $resource->size;
 }
+```
+
+The client automatically paginates through all available resources. You may limit the number of resources returned using the `limit` argument:
+
+```php
+$resources = ClientManager::getInstance()->client('github')->resources(limit: 10);
 ```
 
 To read a resource, use the `readResource` method:
@@ -2213,7 +2362,9 @@ You may write unit tests for your MCP servers, tools, resources, and prompts.
 
 To get started, invoke the desired primitive on the server that registers it. For example, to test a tool on the `WeatherServer`:
 
-```php
+::: code-group
+
+```php [Pest]
 <?php
 declare(strict_types=1);
 
@@ -2231,6 +2382,39 @@ test('tool', function (): void {
         ->assertSee('The current weather in New York City is 72°F and sunny.');
 });
 ```
+
+```php [PHPUnit]
+<?php
+declare(strict_types=1);
+
+namespace App\Test\TestCase\Mcp;
+
+use App\Mcp\Servers\WeatherServer;
+use App\Mcp\Tools\CurrentWeatherTool;
+use Crustum\Mcp\Test\TestCase\McpTestCase;
+
+class WeatherServerTest extends McpTestCase
+{
+    /**
+     * Test a tool.
+     *
+     * @return void
+     */
+    public function test_tool(): void
+    {
+        $response = WeatherServer::tool(CurrentWeatherTool::class, [
+            'location' => 'New York City',
+            'units' => 'fahrenheit',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertSee('The current weather in New York City is 72°F and sunny.');
+    }
+}
+```
+
+:::
 
 Similarly, you may test prompts and resources:
 
@@ -2250,28 +2434,79 @@ $response = WeatherServer::actingAs($user)->tool(CurrentWeatherTool::class, [
 ]);
 ```
 
-Once you receive the response, you may use various assertion methods to verify the content and status of the response:
+Once you receive the response, you may use various assertion methods to verify the content and status of the response.
+
+You may assert that a response is successful using the `assertOk` method. This checks that the response does not have any errors:
 
 ```php
 $response->assertOk();
+```
+
+You may assert that a response contains specific text using the `assertSee` method:
+
+```php
 $response->assertSee('The current weather in New York City is 72°F and sunny.');
+```
+
+You may assert that a response contains an error using the `assertHasErrors` method:
+
+```php
 $response->assertHasErrors();
+
 $response->assertHasErrors([
     'Something went wrong.',
 ]);
+```
+
+You may assert that a response does not contain an error using the `assertHasNoErrors` method:
+
+```php
 $response->assertHasNoErrors();
+```
+
+You may assert that a response contains specific metadata using the `assertName()`, `assertTitle()`, and `assertDescription()` methods:
+
+```php
 $response->assertName('current-weather');
 $response->assertTitle('Current Weather Tool');
 $response->assertDescription('Fetches the current weather forecast for a specified location.');
+```
+
+You may assert that a response contains specific structured content using the `assertStructuredContent` method:
+
+```php
 $response->assertStructuredContent([
     'temperature' => 72,
 ]);
+```
+
+You may assert that notifications were sent using the `assertSentNotification` and `assertNotificationCount` methods:
+
+```php
 $response->assertSentNotification('processing/progress', [
     'step' => 1,
     'total' => 5,
 ]);
+
+$response->assertSentNotification('processing/progress', [
+    'step' => 2,
+    'total' => 5,
+]);
+
 $response->assertNotificationCount(5);
+```
+
+You may assert authentication state using the `assertAuthenticated`, `assertGuest`, and `assertAuthenticatedAs` methods:
+
+```php
 $response->assertAuthenticated();
 $response->assertGuest();
 $response->assertAuthenticatedAs($user);
+```
+
+Finally, if you wish to inspect the raw response content, you may use the `dd` or `dump` methods to output the response for debugging purposes:
+
+```php
+$response->dd();
+$response->dump();
 ```

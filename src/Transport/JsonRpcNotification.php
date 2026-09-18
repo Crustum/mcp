@@ -28,7 +28,7 @@ class JsonRpcNotification implements Arrayable
     /**
      * Create a notification from a raw JSON-RPC payload.
      *
-     * @param array{jsonrpc?: mixed, method?: mixed, params?: array<string, mixed>} $jsonRequest Raw JSON-RPC payload
+     * @param array{jsonrpc?: mixed, method?: mixed, params?: mixed} $jsonRequest Raw JSON-RPC payload
      * @return self
      * @throws \Crustum\Mcp\Exception\JsonRpcException
      */
@@ -42,9 +42,15 @@ class JsonRpcNotification implements Arrayable
             throw new JsonRpcException('Invalid Request: Invalid or missing "method". Must be a string.', -32600);
         }
 
+        $params = array_key_exists('params', $jsonRequest) ? $jsonRequest['params'] : [];
+
+        if (!is_array($params) || ($params !== [] && array_is_list($params))) {
+            throw new JsonRpcException('Invalid params: The [params] member must be an object.', -32602);
+        }
+
         return new self(
             method: $jsonRequest['method'],
-            params: $jsonRequest['params'] ?? [],
+            params: $params,
         );
     }
 

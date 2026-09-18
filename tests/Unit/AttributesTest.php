@@ -256,11 +256,6 @@ class ChildToolWithOverride extends ParentToolWithAttribute
 #[Name('Parent Server')]
 class ParentServerWithAttribute extends Server
 {
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'test-session';
-    }
 }
 
 class ChildServerWithoutAttribute extends ParentServerWithAttribute
@@ -446,31 +441,16 @@ class AttributeDescriptionPrompt extends Prompt
 #[Name('Attribute Server')]
 class AttributeNameServer extends Server
 {
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'test-session';
-    }
 }
 
 #[Version('2.0.0')]
 class AttributeVersionServer extends Server
 {
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'test-session';
-    }
 }
 
 #[Instructions('Custom instructions via attribute')]
 class AttributeInstructionsServer extends Server
 {
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'test-session';
-    }
 }
 
 #[Name('Attribute Server Name')]
@@ -478,22 +458,12 @@ class AttributeOverridesPropertyNameServer extends Server
 {
     protected string $name = 'Property Server Name';
 
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'test-session';
-    }
 }
 
 class PropertyOnlyNameServer extends Server
 {
     protected string $name = 'Property Server';
 
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'test-session';
-    }
 }
 
 #[Uri('file://ignored/uri')]

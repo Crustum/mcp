@@ -27,6 +27,16 @@ class JsonRpcException extends Exception
     }
 
     /**
+     * Get the additional error data.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function data(): ?array
+    {
+        return $this->data;
+    }
+
+    /**
      * Convert the exception to a JSON-RPC response.
      *
      * @return \Crustum\Mcp\Transport\JsonRpcResponse

@@ -6,11 +6,16 @@ namespace Crustum\Mcp\Client\Transport;
 use Cake\Http\Client;
 use Cake\Http\Client\Exception\NetworkException;
 use Cake\Http\Client\Response as ClientResponse;
+use Cake\Utility\Hash;
 use Closure;
 use Crustum\Mcp\Client\Contracts\Transport;
+use Crustum\Mcp\Client\Contracts\UsesProtocol;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
+use Crustum\Mcp\Client\Exception\TransportException;
 use Crustum\Mcp\Client\OAuth\WwwAuthenticateChallenge;
+use Crustum\Mcp\Enums\ProtocolHandshake;
 use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enums\RequestHeader;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\SessionExpiredException;
 use Psr\Http\Message\StreamInterface;
@@ -20,7 +25,7 @@ use Throwable;
 /**
  * MCP client transport over HTTP with optional SSE responses.
  */
-class HttpTransport implements Transport
+class HttpTransport implements Transport, UsesProtocol
 {
     /**
      * Bearer token or token resolver.
@@ -28,6 +33,13 @@ class HttpTransport implements Transport
      * @var \Closure(): string|string|null
      */
     protected string|Closure|null $token = null;
+
+    /**
+     * Active protocol version for the transport.
+     *
+     * @var \Crustum\Mcp\Enums\ProtocolVersion|null
+     */
+    protected ?ProtocolVersion $protocolVersion = null;
 
     /**
      * Active MCP session identifier.
@@ -42,13 +54,6 @@ class HttpTransport implements Transport
      * @var bool
      */
     protected bool $initialized = false;
-
-    /**
-     * Negotiated MCP protocol version.
-     *
-     * @var string|null
-     */
-    protected ?string $protocolVersion = null;
 
     /**
      * HTTP request timeout in seconds.
@@ -167,13 +172,13 @@ class HttpTransport implements Transport
     /**
      * @inheritDoc
      */
-    public function send(string $message): void
+    public function send(string $message, array $headers = []): void
     {
         $hadSession = $this->sessionId !== null;
 
         try {
             $response = $this->client()->post($this->url, $message, [
-                'headers' => array_merge($this->headers(), [
+                'headers' => array_merge($this->headers($headers), [
                     'Content-Type' => 'application/json',
                 ]),
                 'timeout' => $this->timeoutSeconds,
@@ -204,10 +209,26 @@ class HttpTransport implements Transport
         }
 
         if (!$response->isSuccess()) {
-            $this->failWith("Unexpected HTTP status [{$statusCode}] from endpoint [{$this->url}].");
+            $content = trim($response->getStringBody());
+
+            if ($this->hasJsonRpcError($content)) {
+                $this->queue[] = $content;
+
+                return;
+            }
+
+            if ($statusCode === 404 || ($statusCode >= 500 && $statusCode !== 501)) {
+                $this->failWith("Unexpected HTTP status [{$statusCode}] from endpoint [{$this->url}].");
+            }
+
+            $this->reset();
+
+            throw new TransportException("The endpoint [{$this->url}] rejected the request with HTTP status [{$statusCode}].");
         }
 
-        $this->initialized = true;
+        if ($this->protocolVersion?->handshake() === ProtocolHandshake::Initialize) {
+            $this->initialized = true;
+        }
 
         if (str_contains($response->getHeaderLine('Content-Type'), 'text/event-stream')) {
             $this->readSseStream($response);
@@ -215,21 +236,31 @@ class HttpTransport implements Transport
             return;
         }
 
-        $body = trim($response->getStringBody());
+        $content = trim($response->getStringBody());
 
-        if ($statusCode === 202 || $body === '') {
+        if ($statusCode === 202 || $content === '') {
             return;
         }
 
-        $this->queue[] = $body;
+        $this->queue[] = $content;
     }
 
     /**
-     * @inheritDoc
+     * Configure the transport for the active protocol version.
+     *
+     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version
+     * @return void
      */
-    public function setProtocolVersion(string $version): void
+    public function useProtocol(ProtocolVersion $protocolVersion): void
     {
-        $this->protocolVersion = $version;
+        $previous = $this->protocolVersion;
+
+        if ($previous instanceof ProtocolVersion && $previous->handshake() !== $protocolVersion->handshake()) {
+            $this->sessionId = null;
+            $this->initialized = false;
+        }
+
+        $this->protocolVersion = $protocolVersion;
     }
 
     /**
@@ -255,6 +286,19 @@ class HttpTransport implements Transport
     }
 
     /**
+     * Determine whether a response body carries a JSON-RPC error frame.
+     *
+     * @param string $content Response body
+     * @return bool
+     */
+    protected function hasJsonRpcError(string $content): bool
+    {
+        $body = json_decode($content, true);
+
+        return is_array($body) && Hash::get($body, 'jsonrpc') === '2.0' && is_array(Hash::get($body, 'error'));
+    }
+
+    /**
      * Resolve the HTTP client instance.
      *
      * @return \Cake\Http\Client
@@ -273,21 +317,16 @@ class HttpTransport implements Transport
     /**
      * Build outbound HTTP headers.
      *
+     * @param array<string, string> $mirrored Mirrored protocol headers
      * @return array<string, string>
      */
-    protected function headers(): array
+    protected function headers(array $mirrored = []): array
     {
         $headers = [
             'Accept' => 'application/json, text/event-stream',
+            ...$this->eraHeaders(),
+            ...$mirrored,
         ];
-
-        if ($this->sessionId !== null) {
-            $headers['MCP-Session-Id'] = $this->sessionId;
-        }
-
-        if ($this->initialized) {
-            $headers['MCP-Protocol-Version'] = $this->protocolVersion ?? ProtocolVersion::LATEST->value;
-        }
 
         $token = $this->token instanceof Closure ? (string)($this->token)() : $this->token;
 
@@ -296,6 +335,10 @@ class HttpTransport implements Transport
         }
 
         foreach ($this->customHeaders as $name => $value) {
+            if ($this->reserved($name)) {
+                continue;
+            }
+
             foreach (array_keys($headers) as $existing) {
                 if (strcasecmp($existing, $name) === 0) {
                     unset($headers[$existing]);
@@ -309,6 +352,43 @@ class HttpTransport implements Transport
     }
 
     /**
+     * Determine whether a header name is reserved by the MCP protocol.
+     *
+     * @param string $name Header name
+     * @return bool
+     */
+    protected function reserved(string $name): bool
+    {
+        return str_starts_with(strtolower($name), 'mcp-');
+    }
+
+    /**
+     * Build the headers specific to the active protocol era.
+     *
+     * @return array<string, string>
+     */
+    protected function eraHeaders(): array
+    {
+        $version = $this->protocolVersion;
+
+        if ($version?->handshake() === ProtocolHandshake::Discovery) {
+            return [RequestHeader::PROTOCOL_VERSION->value => $version->value];
+        }
+
+        $headers = [];
+
+        if ($this->sessionId !== null) {
+            $headers['MCP-Session-Id'] = $this->sessionId;
+        }
+
+        if ($this->initialized && $version instanceof ProtocolVersion) {
+            $headers[RequestHeader::PROTOCOL_VERSION->value] = $version->value;
+        }
+
+        return $headers;
+    }
+
+    /**
      * Capture the MCP session identifier from a response.
      *
      * @param \Cake\Http\Client\Response $response HTTP response
@@ -316,6 +396,10 @@ class HttpTransport implements Transport
      */
     protected function captureSessionId(ClientResponse $response): void
     {
+        if ($this->protocolVersion?->handshake() !== ProtocolHandshake::Initialize) {
+            return;
+        }
+
         $sessionId = $response->getHeaderLine('MCP-Session-Id');
 
         if ($sessionId !== '') {
@@ -417,9 +501,9 @@ class HttpTransport implements Transport
      */
     protected function reset(): void
     {
+        $this->protocolVersion = null;
         $this->sessionId = null;
         $this->initialized = false;
-        $this->protocolVersion = null;
         $this->queue = [];
     }
 

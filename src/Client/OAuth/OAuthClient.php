@@ -40,6 +40,7 @@ class OAuthClient
      * @param string|null $challengeScope Scope requested by the WWW-Authenticate challenge
      * @param \Crustum\Mcp\Client\OAuth\AuthServerDiscovery $discovery Authorization server discovery service
      * @param \Cake\Http\Session|null $session HTTP session for browser OAuth state
+     * @param string|null $clientIdMetadataUrl Client ID metadata document URL
      */
     public function __construct(
         protected OAuthConfig $config,
@@ -48,6 +49,7 @@ class OAuthClient
         protected ?string $challengeScope = null,
         protected AuthServerDiscovery $discovery = new AuthServerDiscovery(),
         protected ?Session $session = null,
+        protected ?string $clientIdMetadataUrl = null,
     ) {
         $this->resourceUrl = self::stripFragment($this->resourceUrl);
     }
@@ -64,7 +66,11 @@ class OAuthClient
         $discovered = $this->discover();
         $metadata = $discovered->server;
 
-        if ($metadata->codeChallengeMethodsSupported !== [] && !in_array('S256', $metadata->codeChallengeMethodsSupported, true)) {
+        if ($metadata->codeChallengeMethodsSupported === []) {
+            throw new OAuthException('The authorization server metadata does not advertise [code_challenge_methods_supported], so it does not support the required PKCE.');
+        }
+
+        if (!in_array('S256', $metadata->codeChallengeMethodsSupported, true)) {
             throw new OAuthException('The authorization server does not support the required S256 PKCE method.');
         }
 
@@ -73,7 +79,9 @@ class OAuthClient
         $redirectUri = $this->config->redirectUri ?? throw new OAuthException('A redirect URI is required.');
 
         if ($clientId === null) {
-            $registration = $this->register($metadata, $redirectUri);
+            $registration = $this->usesClientIdMetadataDocument($metadata)
+                ? new ClientRegistration(clientId: (string)$this->clientIdMetadataUrl)
+                : $this->register($metadata, $redirectUri);
 
             $clientId = $registration->clientId;
             $clientSecret = $registration->clientSecret;
@@ -274,6 +282,52 @@ class OAuthClient
     }
 
     /**
+     * Determine whether the client ID metadata document should be used.
+     *
+     * @param \Crustum\Mcp\Client\OAuth\AuthServerMetadata $metadata Authorization server metadata
+     * @return bool
+     */
+    protected function usesClientIdMetadataDocument(AuthServerMetadata $metadata): bool
+    {
+        if (!$metadata->clientIdMetadataDocumentSupported || $this->clientIdMetadataUrl === null) {
+            return false;
+        }
+
+        $url = parse_url($this->clientIdMetadataUrl);
+
+        if (!is_array($url) || ($url['scheme'] ?? null) !== 'https' || ($url['path'] ?? '/') === '/') {
+            return false;
+        }
+
+        if (isset($url['fragment']) || isset($url['query'])) {
+            return false;
+        }
+
+        return $this->isPubliclyResolvable((string)($url['host'] ?? ''));
+    }
+
+    /**
+     * Determine whether a host is publicly resolvable.
+     *
+     * @param string $host Host name
+     * @return bool
+     */
+    protected function isPubliclyResolvable(string $host): bool
+    {
+        $host = strtolower(trim($host, '[]'));
+
+        if ($host === '' || $host === 'localhost' || preg_match('/\.(test|local|localhost|internal|invalid|example)$/', $host) === 1) {
+            return false;
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP) === false) {
+            return true;
+        }
+
+        return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+    }
+
+    /**
      * Register a client dynamically when no client identifier is configured.
      *
      * @param \Crustum\Mcp\Client\OAuth\AuthServerMetadata $metadata Authorization server metadata
@@ -283,7 +337,7 @@ class OAuthClient
     protected function register(AuthServerMetadata $metadata, string $redirectUri): ClientRegistration
     {
         if ($metadata->registrationEndpoint === null) {
-            throw new OAuthException('No client_id was configured and the authorization server does not support dynamic client registration.');
+            throw new OAuthException('No client_id was configured, no https client ID metadata document URL is available, and the authorization server does not support dynamic client registration.');
         }
 
         return (new DynamicClientRegistration())->register(

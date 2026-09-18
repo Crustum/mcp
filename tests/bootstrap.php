@@ -94,9 +94,18 @@ if (!getenv('db_dsn')) {
     putenv('db_dsn=sqlite:///:memory:');
 }
 
+// Simulate a web SAPI for HTTP integration tests: when tests run under CLI,
+// SCRIPT_NAME/PHP_SELF point at the pest binary, and dispatched requests
+// would otherwise stick a bogus `base` path into Router state.
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+
 ConnectionManager::setConfig('test', [
     'url' => getenv('db_dsn'),
     'timezone' => 'UTC',
+    // Never cache reflected schema: tests recreate tables per test and
+    // CachedCollection would otherwise serve stale column lists.
+    'cacheMetadata' => false,
 ]);
 
 ConnectionManager::alias('test', 'default');

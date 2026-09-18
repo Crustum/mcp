@@ -6,7 +6,9 @@ namespace Crustum\Mcp\Server;
 use Cake\Collection\Collection;
 use Crustum\Mcp\Schema\Implementation;
 use Crustum\Mcp\Server\Contracts\HasUriTemplate;
+use Crustum\Mcp\Server\Tools\ToolSearch;
 use Crustum\Mcp\Support\ContainerRegistry;
+use InvalidArgumentException;
 
 /**
  * MCP server runtime context for JSON-RPC method handlers.
@@ -20,7 +22,7 @@ class ServerContext
      * @param string $instructions Server instructions
      * @param int $maxPaginationLength Maximum pagination page size
      * @param int $defaultPaginationLength Default pagination page size
-     * @param array<int, \Crustum\Mcp\Server\Tool|string> $tools Registered tools
+     * @param array<int|string, \Crustum\Mcp\Server\Tool|string|array<int, \Crustum\Mcp\Server\Tool|string>> $tools Registered tools
      * @param array<int, \Crustum\Mcp\Server\Resource|string> $resources Registered resources
      * @param array<int, \Crustum\Mcp\Server\Prompt|string> $prompts Registered prompts
      */
@@ -44,7 +46,68 @@ class ServerContext
      */
     public function tools(): Collection
     {
-        return $this->resolveTools(new Collection($this->tools));
+        $configuredTools = [];
+
+        foreach ($this->tools as $key => $tool) {
+            if ($key !== ToolSearch::class) {
+                if (is_array($tool)) {
+                    throw new InvalidArgumentException('Tool groups must use ToolSearch::class as their key.');
+                }
+
+                $configuredTools[] = $tool;
+
+                continue;
+            }
+
+            if (!is_array($tool)) {
+                throw new InvalidArgumentException('The ToolSearch::class entry must contain an array of tools.');
+            }
+
+            $configuredTools[] = new ToolSearch($tool);
+        }
+
+        $hasToolSearch = false;
+
+        foreach ($configuredTools as $tool) {
+            if ($tool instanceof ToolSearch) {
+                $hasToolSearch = true;
+
+                break;
+            }
+        }
+
+        /** @var list<\Crustum\Mcp\Server\Tool|\Crustum\Mcp\Server\Tools\SearchTools|\Crustum\Mcp\Server\Tools\ExecuteTools|string> $expanded */
+        $expanded = [];
+
+        foreach ($configuredTools as $tool) {
+            if ($tool instanceof ToolSearch) {
+                foreach ($tool->tools() as $searchTool) {
+                    $expanded[] = $searchTool;
+                }
+
+                continue;
+            }
+
+            $expanded[] = $tool;
+        }
+
+        $resolved = $this->resolveTools(new Collection($expanded));
+
+        if ($hasToolSearch) {
+            $seen = [];
+
+            foreach ($resolved as $tool) {
+                $name = $tool->name();
+
+                if (isset($seen[$name])) {
+                    throw new InvalidArgumentException("Duplicate server tool name [{$name}].");
+                }
+
+                $seen[$name] = true;
+            }
+        }
+
+        return $resolved;
     }
 
     /**
@@ -110,7 +173,7 @@ class ServerContext
     /**
      * Resolve tool class names to instances and filter registration eligibility.
      *
-     * @param \Cake\Collection\Collection<int, \Crustum\Mcp\Server\Tool|string> $tools Tool collection
+     * @param \Cake\Collection\Collection<int<0, max>, \Crustum\Mcp\Server\Tool|string> $tools Tool collection
      * @return \Cake\Collection\Collection<int, \Crustum\Mcp\Server\Tool>
      */
     private function resolveTools(Collection $tools): Collection

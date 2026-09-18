@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Controller;
 
+use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Http\Session;
 use Crustum\Mcp\Client\ClientManager;
@@ -71,6 +72,44 @@ class OAuthController extends AppController
         $returnTo = $oauth->returnTo() ?? '/';
 
         return $this->redirect($returnTo);
+    }
+
+    /**
+     * Serve the client ID metadata document for a named MCP client.
+     *
+     * @param string $clientName Registered MCP client name
+     * @return \Cake\Http\Response
+     */
+    public function clientMetadata(string $clientName): Response
+    {
+        $base = rtrim((string)Configure::read('App.fullBaseUrl', ''), '/');
+
+        $clientMetadata = OAuthRouteRegistrar::clientMetadata($clientName);
+
+        $document = [
+            'client_name' => trim(Configure::read('App.name', '') . ' MCP Client'),
+            'client_uri' => $base,
+            'grant_types' => ['authorization_code', 'refresh_token'],
+            'response_types' => ['code'],
+            ...$clientMetadata,
+            'client_id' => OAuthRouteRegistrar::url("mcp.oauth.{$clientName}.client-metadata"),
+            'redirect_uris' => array_values(array_unique(array_merge([
+                OAuthRouteRegistrar::url("mcp.oauth.{$clientName}.callback"),
+            ], array_map(strval(...), (array)($clientMetadata['redirect_uris'] ?? []))))),
+            'token_endpoint_auth_method' => 'none',
+        ];
+
+        unset(
+            $document['client_secret'],
+            $document['client_secret_expires_at'],
+            $document['registration_access_token'],
+        );
+
+        $response = $this->response->withType('json');
+
+        return $response->withStringBody((string)json_encode($document, JSON_UNESCAPED_SLASHES))
+            ->withCache('-1 minute')
+            ->withSharable(true);
     }
 
     /**

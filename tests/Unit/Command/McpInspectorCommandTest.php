@@ -154,3 +154,31 @@ it('retrieves a php binary path', function (): void {
     expect($phpBinary)->toBeString();
     expect(strlen((string)$phpBinary))->toBeGreaterThan(0);
 });
+
+it('extracts route parameters from a server uri', function (): void {
+    $command = new McpInspectorCommand();
+
+    expect(invokeMcpCommandMethod($command, 'routeParameters', ['mcp/{organisation:uuid}/qa']))
+        ->toBe(['organisation']);
+});
+
+it('extracts colon style route parameters from a server uri', function (): void {
+    $command = new McpInspectorCommand();
+
+    expect(invokeMcpCommandMethod($command, 'routeParameters', ['mcp/:org/qa']))
+        ->toBe(['org']);
+});
+
+it('returns no route parameters for a plain uri', function (): void {
+    $command = new McpInspectorCommand();
+
+    expect(invokeMcpCommandMethod($command, 'routeParameters', ['mcp/qa']))
+        ->toBe([]);
+});
+
+it('substitutes route parameter values into a server uri', function (): void {
+    $command = new McpInspectorCommand();
+
+    expect(invokeMcpCommandMethod($command, 'substituteRouteParameters', ['mcp/{organisation:uuid}/qa', ['organisation' => '4f8a1c2e']]))
+        ->toBe('mcp/4f8a1c2e/qa');
+});

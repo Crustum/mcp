@@ -26,9 +26,10 @@ interface Transport
      * Send a message to the MCP server.
      *
      * @param string $message Serialized JSON-RPC message
+     * @param array<string, string> $headers Extra request headers
      * @return void
      */
-    public function send(string $message): void;
+    public function send(string $message, array $headers = []): void;
 
     /**
      * Receive the next message from the MCP server.
@@ -44,14 +45,6 @@ interface Transport
      * @return void
      */
     public function setTimeoutSeconds(float $seconds): void;
-
-    /**
-     * Set the negotiated MCP protocol version.
-     *
-     * @param string $version Protocol version string
-     * @return void
-     */
-    public function setProtocolVersion(string $version): void;
 
     /**
      * Get a serializable transport recipe.

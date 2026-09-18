@@ -258,6 +258,28 @@ class TestResponse
     }
 
     /**
+     * Assert that the primitive was not registered (not found by the server).
+     *
+     * @return static
+     */
+    public function assertNotRegistered(): static
+    {
+        [$primitiveType, $primitiveIdentifier] = match (true) {
+            $this->primitive instanceof Tool => ['tool', $this->primitive->name()],
+            $this->primitive instanceof Prompt => ['prompt', $this->primitive->name()],
+            $this->primitive instanceof Resource => ['resource', $this->primitive->uri()],
+            default => throw new RuntimeException('This primitive type is not supported.'),
+        };
+
+        Assert::assertTrue(
+            count(array_filter($this->errors(), fn(string $error): bool => str_contains($error, ucfirst($primitiveType) . ' [' . $primitiveIdentifier . '] not found.'))) > 0,
+            'The ' . $primitiveType . ' [' . $this->primitive::class . '] is registered.',
+        );
+
+        return $this;
+    }
+
+    /**
      * Assert that the response has no errors.
      *
      * @return static

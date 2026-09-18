@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use Crustum\Mcp\Enums\ErrorCode;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Request;
 use Crustum\Mcp\Response;
@@ -59,6 +60,7 @@ it('returns a valid resource result for blob resources', function (): void {
 it('throws error when uri is missing', function (): void {
     $this->expectException(JsonRpcException::class);
     $this->expectExceptionMessage('Missing [uri] parameter.');
+    $this->expectExceptionCode(ErrorCode::INVALID_PARAMS->value);
 
     $readResource = new ReadResource();
     $context = $this->getServerContext();
@@ -74,6 +76,7 @@ it('throws error when uri is missing', function (): void {
 
 it('throws exception when resource is not found', function (): void {
     $this->expectException(JsonRpcException::class);
+    $this->expectExceptionCode(ErrorCode::INVALID_PARAMS->value);
 
     $readResource = new ReadResource();
     $context = $this->getServerContext();
@@ -342,7 +345,7 @@ it('extracts variables from URI template and passes to handler', function (strin
     ],
 ]);
 
-it('preserves sessionId and meta from the original request for template resources', function (): void {
+it('preserves meta from the original request for template resources', function (): void {
     $template = new class extends Resource implements HasUriTemplate
     {
         public function uriTemplate(): UriTemplate
@@ -353,7 +356,6 @@ it('preserves sessionId and meta from the original request for template resource
         public function handle(Request $request): Response
         {
             return Response::json([
-                'sessionId' => $request->sessionId(),
                 'meta' => $request->meta(),
                 'arguments' => $request->all(),
             ]);
@@ -364,7 +366,6 @@ it('preserves sessionId and meta from the original request for template resource
         'resources' => [$template],
     ]);
 
-    $sessionId = 'test-session-123';
     $meta = ['progressToken' => 'abc123'];
     $jsonRpcRequest = new JsonRpcRequest(
         id: 1,
@@ -374,7 +375,6 @@ it('preserves sessionId and meta from the original request for template resource
             'arguments' => ['format' => 'json'],
             '_meta' => $meta,
         ],
-        sessionId: $sessionId,
     );
 
     $container = ContainerRegistry::getInstance();
@@ -387,8 +387,7 @@ it('preserves sessionId and meta from the original request for template resource
 
         $responseData = json_decode((string)$payload['result']['contents'][0]['text'], true);
 
-        expect($responseData['sessionId'])->toBe($sessionId)
-            ->and($responseData['meta'])->toBe($meta)
+        expect($responseData['meta'])->toBe($meta)
             ->and($responseData['arguments'])->toHaveKey('userId', '42')
             ->and($responseData['arguments'])->toHaveKey('format', 'json');
     } finally {

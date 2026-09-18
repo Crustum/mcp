@@ -6,6 +6,7 @@ namespace Crustum\Mcp\Schema;
 use Cake\Utility\Hash;
 use Crustum\Mcp\Contracts\Arrayable;
 use Crustum\Mcp\Enums\IconTheme;
+use InvalidArgumentException;
 
 /**
  * MCP implementation metadata schema value.
@@ -55,44 +56,77 @@ class Implementation implements Arrayable
     }
 
     /**
-     * Create an implementation from an array payload.
+     * Create an implementation from an arbitrary payload.
      *
-     * @param array{
-     *     name: string,
-     *     version: string,
-     *     title?: string,
-     *     description?: string,
-     *     icons?: array<int, array{src: string, mimeType?: string, sizes?: array<string>, theme?: string}>,
-     *     websiteUrl?: string,
-     * } $data Implementation payload
-     * @return self
+     * Returns null when the payload is not a well-formed implementation.
+     *
+     * @param mixed $data Implementation payload
+     * @return self|null
      */
-    public static function from(array $data): self
+    public static function from(mixed $data): ?self
     {
-        $icons = [];
-
-        foreach (Hash::get($data, 'icons', []) as $icon) {
-            if (!is_array($icon)) {
-                continue;
-            }
-
-            $theme = IconTheme::tryFrom((string)Hash::get($icon, 'theme', ''));
-
-            $icons[] = Icon::from(
-                src: (string)Hash::get($icon, 'src'),
-                mimeType: Hash::get($icon, 'mimeType'),
-                sizes: Hash::get($icon, 'sizes', []),
-                theme: $theme instanceof IconTheme ? $theme : null,
-            );
+        if (!is_array($data)) {
+            return null;
         }
 
-        return new self(
-            name: (string)Hash::get($data, 'name'),
-            version: (string)Hash::get($data, 'version'),
-            title: Hash::get($data, 'title'),
-            description: Hash::get($data, 'description'),
-            icons: $icons,
-            websiteUrl: Hash::get($data, 'websiteUrl'),
-        );
+        try {
+            return new self(
+                name: self::stringAt($data, 'name'),
+                version: self::stringAt($data, 'version'),
+                title: self::stringAt($data, 'title', '') ?: null,
+                description: self::stringAt($data, 'description', '') ?: null,
+                icons: array_map(function (mixed $icon): Icon {
+                    $icon = is_array($icon) ? $icon : [];
+
+                    return Icon::from(
+                        src: self::stringAt($icon, 'src'),
+                        mimeType: self::stringAt($icon, 'mimeType', '') ?: null,
+                        sizes: array_values(array_filter(self::arrayAt($icon, 'sizes', []), is_string(...))),
+                        theme: IconTheme::tryFrom(self::stringAt($icon, 'theme', '')),
+                    );
+                }, self::arrayAt($data, 'icons', [])),
+                websiteUrl: self::stringAt($data, 'websiteUrl', '') ?: null,
+            );
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    /**
+     * Read a string value from an array or throw.
+     *
+     * @param array<array-key, mixed> $array Source array
+     * @param string $key Array key
+     * @param string|null $default Default value
+     * @return string
+     */
+    protected static function stringAt(array $array, string $key, ?string $default = null): string
+    {
+        $value = Hash::get($array, $key, $default);
+
+        if (!is_string($value)) {
+            throw new InvalidArgumentException("The [{$key}] value must be a string.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * Read an array value from an array or throw.
+     *
+     * @param array<array-key, mixed> $array Source array
+     * @param string $key Array key
+     * @param array<array-key, mixed>|null $default Default value
+     * @return array<array-key, mixed>
+     */
+    protected static function arrayAt(array $array, string $key, ?array $default = null): array
+    {
+        $value = Hash::get($array, $key, $default);
+
+        if (!is_array($value)) {
+            throw new InvalidArgumentException("The [{$key}] value must be an array.");
+        }
+
+        return $value;
     }
 }

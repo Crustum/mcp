@@ -96,16 +96,11 @@ class McpInspectorCommand extends Command
         if ($localServer !== null) {
             $cakePath = $this->externalProcessPath(ROOT . DS . 'bin' . DS . 'cake.php');
             $phpBinary = $this->externalProcessPath($this->phpBinary());
-            $command = [
-                'npx',
-                '@modelcontextprotocol/inspector',
-                '--transport',
-                'stdio',
-                $phpBinary,
-                $cakePath,
-                'mcp',
-                'start',
-                $handle,
+
+            $serverConfig = [
+                'type' => 'stdio',
+                'command' => $phpBinary,
+                'args' => [$cakePath, 'mcp', 'start', $handle],
             ];
 
             $guidance = [
@@ -119,7 +114,15 @@ class McpInspectorCommand extends Command
                 ]),
             ];
         } else {
-            $serverUrl = $this->resolveWebServerUrl($args, $webServer->uri);
+            $uri = $this->promptForRouteParameters($webServer->uri, $io);
+
+            if ($uri === null) {
+                $io->error('Every route parameter needs a value to inspect this server');
+
+                return static::CODE_ERROR;
+            }
+
+            $serverUrl = $this->resolveWebServerUrl($args, $uri);
 
             if ($serverUrl === null) {
                 $io->error('MCP Inspector requires an absolute server URL.');
@@ -132,13 +135,9 @@ class McpInspectorCommand extends Command
                 $env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
             }
 
-            $command = [
-                'npx',
-                '@modelcontextprotocol/inspector',
-                '--transport',
-                'http',
-                '--server-url',
-                $serverUrl,
+            $serverConfig = [
+                'type' => 'http',
+                'url' => $serverUrl,
             ];
 
             $guidance = [
@@ -147,6 +146,30 @@ class McpInspectorCommand extends Command
                 'Secure' => 'Your project must be accessible on HTTP for this to work due to how node manages SSL trust',
             ];
         }
+
+        $serverConfig['protocolEra'] = 'modern';
+
+        $configPath = tempnam(sys_get_temp_dir(), 'mcp-inspector-');
+
+        if ($configPath === false) {
+            $io->error('Unable to write the MCP Inspector configuration file.');
+
+            return static::CODE_ERROR;
+        }
+
+        file_put_contents($configPath, (string)json_encode([
+            'mcpServers' => [$handle => $serverConfig],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $command = [
+            'npx',
+            '@modelcontextprotocol/inspector',
+            '--config',
+            $configPath,
+        ];
+
+        $guidance['Protocol Era'] = 'modern';
+        $guidance['Config'] = $configPath;
 
         $process = new Process($command, ROOT, $env);
         $process->setTimeout(null);
@@ -168,6 +191,79 @@ class McpInspectorCommand extends Command
         }
 
         return static::CODE_SUCCESS;
+    }
+
+    /**
+     * Prompt for values of route parameters in a server URI.
+     *
+     * @param string $uri Registered MCP server URI
+     * @param \Cake\Console\ConsoleIo $io Console IO
+     * @return string|null
+     */
+    protected function promptForRouteParameters(string $uri, ConsoleIo $io): ?string
+    {
+        $parameters = $this->routeParameters($uri);
+
+        if ($parameters === []) {
+            return $uri;
+        }
+
+        $values = [];
+
+        foreach ($parameters as $parameter) {
+            $value = trim($io->ask("What is the value for the [{$parameter}] route parameter?"));
+
+            if ($value === '') {
+                return null;
+            }
+
+            $values[$parameter] = $value;
+        }
+
+        return $this->substituteRouteParameters($uri, $values);
+    }
+
+    /**
+     * Extract route parameter names from a server URI.
+     *
+     * @param string $uri Registered MCP server URI
+     * @return array<int, string>
+     */
+    protected function routeParameters(string $uri): array
+    {
+        $parameters = [];
+
+        if (preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::[^}]+)?\}/', $uri, $braced) === 1) {
+            $parameters = [...$parameters, ...$braced[1]];
+        }
+
+        $withoutBraced = (string)preg_replace('/\{[^}]+\}/', '', $uri);
+
+        if (preg_match_all('/(?<![a-zA-Z0-9_]):([a-zA-Z_][a-zA-Z0-9_]*)/', $withoutBraced, $colon) === 1) {
+            $parameters = [...$parameters, ...$colon[1]];
+        }
+
+        return array_values(array_unique($parameters));
+    }
+
+    /**
+     * Substitute route parameter values into a server URI.
+     *
+     * @param string $uri Registered MCP server URI
+     * @param array<string, string> $values Parameter values
+     * @return string
+     */
+    protected function substituteRouteParameters(string $uri, array $values): string
+    {
+        foreach ($values as $parameter => $value) {
+            $uri = preg_replace(
+                ['/\{' . preg_quote($parameter, '/') . '(?::[^}]+)?\}/', '/:' . preg_quote($parameter, '/') . '\b/'],
+                $value,
+                $uri,
+            ) ?? $uri;
+        }
+
+        return $uri;
     }
 
     /**

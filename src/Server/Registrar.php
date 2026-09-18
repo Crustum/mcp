@@ -6,7 +6,6 @@ namespace Crustum\Mcp\Server;
 use Cake\Core\Configure;
 use Cake\Routing\RouteBuilder;
 use Cake\Routing\Router;
-use Cake\Utility\Text;
 use Closure;
 use Crustum\Mcp\Client\OAuth\OAuthRouteRegistrar;
 use Crustum\Mcp\Server\Transport\StdioTransport;
@@ -48,13 +47,6 @@ class Registrar
      * @var array<string, true>
      */
     protected array $connectedUris = [];
-
-    /**
-     * Whether OAuth well-known and DCR routes were connected.
-     *
-     * @var bool
-     */
-    protected bool $oauthRoutesConnected = false;
 
     /**
      * Get the shared registrar instance.
@@ -152,7 +144,7 @@ class Registrar
     {
         $this->localServers[$handle] = fn(): mixed => static::startServer(
             $serverClass,
-            fn(): StdioTransport => new StdioTransport(Text::uuid()),
+            fn(): StdioTransport => new StdioTransport(),
         );
     }
 
@@ -243,6 +235,8 @@ class Registrar
      * @param array<int, string>|string $middleware Route middleware
      * @param string|null $connectUri Connect route path
      * @param string|null $callbackUri Callback route path
+     * @param string|null $clientMetadataUri Client metadata document route path
+     * @param array<string, mixed> $clientMetadata Client metadata overrides
      * @return void
      */
     public function oAuthRoutesFor(
@@ -252,6 +246,8 @@ class Registrar
         array|string $middleware = [],
         ?string $connectUri = null,
         ?string $callbackUri = null,
+        ?string $clientMetadataUri = null,
+        array $clientMetadata = [],
     ): void {
         (new OAuthRouteRegistrar())->register(
             $routes,
@@ -260,6 +256,8 @@ class Registrar
             $middleware,
             $connectUri,
             $callbackUri,
+            $clientMetadataUri,
+            $clientMetadata,
         );
     }
 
@@ -272,10 +270,6 @@ class Registrar
      */
     public function oauthRoutes(RouteBuilder $routes, string $oauthPrefix = 'oauth'): void
     {
-        if ($this->oauthRoutesConnected) {
-            return;
-        }
-
         static::ensureMcpScope();
 
         $plugin = ['plugin' => 'Crustum/Mcp'];
@@ -304,45 +298,49 @@ class Registrar
             );
         }
 
-        $routes->connect(
-            '/.well-known/oauth-protected-resource/{path}',
-            $plugin + [
-                'controller' => 'OAuthMetadata',
-                'action' => 'protectedResource',
-            ],
-            [
-                '_name' => 'mcp.oauth.protected-resource.nested',
-                '_method' => 'GET',
-                'pass' => ['path'],
-                'path' => '.*',
-            ],
-        );
+        if (!array_key_exists('mcp.oauth.protected-resource.nested', $named)) {
+            $routes->connect(
+                '/.well-known/oauth-protected-resource/{path}',
+                $plugin + [
+                    'controller' => 'OAuthMetadata',
+                    'action' => 'protectedResource',
+                ],
+                [
+                    '_name' => 'mcp.oauth.protected-resource.nested',
+                    '_method' => 'GET',
+                    'pass' => ['path'],
+                    'path' => '.*',
+                ],
+            );
+        }
 
-        $routes->connect(
-            '/.well-known/oauth-authorization-server/{path}',
-            $plugin + [
-                'controller' => 'OAuthMetadata',
-                'action' => 'authorizationServer',
-                'oauthPrefix' => $oauthPrefix,
-            ],
-            [
-                '_name' => 'mcp.oauth.authorization-server.nested',
-                '_method' => 'GET',
-                'pass' => ['path'],
-                'path' => '.*',
-            ],
-        );
+        if (!array_key_exists('mcp.oauth.authorization-server.nested', $named)) {
+            $routes->connect(
+                '/.well-known/oauth-authorization-server/{path}',
+                $plugin + [
+                    'controller' => 'OAuthMetadata',
+                    'action' => 'authorizationServer',
+                    'oauthPrefix' => $oauthPrefix,
+                ],
+                [
+                    '_name' => 'mcp.oauth.authorization-server.nested',
+                    '_method' => 'GET',
+                    'pass' => ['path'],
+                    'path' => '.*',
+                ],
+            );
+        }
 
-        $routes->connect(
-            '/' . trim($oauthPrefix, '/') . '/register',
-            $plugin + [
-                'controller' => 'OAuthRegister',
-                'action' => 'register',
-            ],
-            ['_name' => 'mcp.oauth.register', '_method' => 'POST'],
-        );
-
-        $this->oauthRoutesConnected = true;
+        if (!array_key_exists('mcp.oauth.register', $named)) {
+            $routes->connect(
+                '/' . trim($oauthPrefix, '/') . '/register',
+                $plugin + [
+                    'controller' => 'OAuthRegister',
+                    'action' => 'register',
+                ],
+                ['_name' => 'mcp.oauth.register', '_method' => 'POST'],
+            );
+        }
     }
 
     /**

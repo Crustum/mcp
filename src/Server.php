@@ -4,29 +4,35 @@ declare(strict_types=1);
 namespace Crustum\Mcp;
 
 use Cake\Core\Configure;
-use Cake\Event\EventManager;
-use Crustum\Mcp\Event\SessionInitializedEvent;
+use Crustum\Mcp\Enums\ErrorCode;
+use Crustum\Mcp\Enums\Extension;
+use Crustum\Mcp\Enums\MetaKey;
+use Crustum\Mcp\Enums\ProtocolVersion;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Schema\Implementation;
 use Crustum\Mcp\Server\AppResource;
+use Crustum\Mcp\Server\Attributes\Cacheable;
 use Crustum\Mcp\Server\Attributes\Instructions;
 use Crustum\Mcp\Server\Attributes\Name;
 use Crustum\Mcp\Server\Attributes\Version;
 use Crustum\Mcp\Server\Contracts\Transport;
-use Crustum\Mcp\Server\Enums\ProtocolVersion;
 use Crustum\Mcp\Server\McpRequestBuilder;
 use Crustum\Mcp\Server\Methods\CallTool;
 use Crustum\Mcp\Server\Methods\CompletionComplete;
+use Crustum\Mcp\Server\Methods\Discover;
 use Crustum\Mcp\Server\Methods\GetPrompt;
 use Crustum\Mcp\Server\Methods\Initialize;
+use Crustum\Mcp\Server\Methods\Listen;
 use Crustum\Mcp\Server\Methods\ListPrompts;
 use Crustum\Mcp\Server\Methods\ListResources;
 use Crustum\Mcp\Server\Methods\ListResourceTemplates;
 use Crustum\Mcp\Server\Methods\ListTools;
 use Crustum\Mcp\Server\Methods\Ping;
 use Crustum\Mcp\Server\Methods\ReadResource;
+use Crustum\Mcp\Server\Methods\Trait\ResolvesResourcesTrait;
 use Crustum\Mcp\Server\ServerContext;
 use Crustum\Mcp\Server\Testing\PendingTestResponse;
+use Crustum\Mcp\Server\Testing\TestListResponse;
 use Crustum\Mcp\Server\Testing\TestResponse;
 use Crustum\Mcp\Server\Trait\HasIconsTrait;
 use Crustum\Mcp\Support\ContainerRegistry;
@@ -34,6 +40,7 @@ use Crustum\Mcp\Support\McpContainerBindings;
 use Crustum\Mcp\Transport\JsonRpcNotification;
 use Crustum\Mcp\Transport\JsonRpcRequest;
 use Crustum\Mcp\Transport\JsonRpcResponse;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -44,6 +51,7 @@ use Throwable;
 abstract class Server
 {
     use HasIconsTrait;
+    use ResolvesResourcesTrait;
 
     public const CAPABILITY_TOOLS = 'tools';
 
@@ -53,7 +61,19 @@ abstract class Server
 
     public const CAPABILITY_COMPLETIONS = 'completions';
 
-    public const CAPABILITY_UI = 'io.modelcontextprotocol/ui';
+    /**
+     * Methods whose results may carry caching hints.
+     *
+     * @var array<int, string>
+     */
+    public const CACHEABLE_METHODS = [
+        'server/discover',
+        'tools/list',
+        'prompts/list',
+        'resources/list',
+        'resources/templates/list',
+        'resources/read',
+    ];
 
     /**
      * @var string
@@ -78,6 +98,13 @@ abstract class Server
     protected array $supportedProtocolVersion = [];
 
     /**
+     * MCP extensions advertised through the extensions capability.
+     *
+     * @var array<int, \Crustum\Mcp\Enums\Extension>
+     */
+    protected array $extensions = [];
+
+    /**
      * @var array<string, array<string, bool>|\stdClass|string>
      */
     protected array $capabilities = [
@@ -93,7 +120,7 @@ abstract class Server
     ];
 
     /**
-     * @var array<int, \Crustum\Mcp\Server\Tool|class-string<\Crustum\Mcp\Server\Tool>>
+     * @var array<int|string, \Crustum\Mcp\Server\Tool|class-string<\Crustum\Mcp\Server\Tool>|array<int, \Crustum\Mcp\Server\Tool|class-string<\Crustum\Mcp\Server\Tool>>>
      */
     protected array $tools = [];
 
@@ -129,7 +156,10 @@ abstract class Server
         'prompts/list' => ListPrompts::class,
         'prompts/get' => GetPrompt::class,
         'completion/complete' => CompletionComplete::class,
+        'server/discover' => Discover::class,
+        'initialize' => Initialize::class,
         'ping' => Ping::class,
+        'subscriptions/listen' => Listen::class,
     ];
 
     /**
@@ -209,52 +239,50 @@ abstract class Server
     public function handle(string $rawMessage): void
     {
         $context = $this->createContext();
-        $request = null;
+        $requestId = null;
 
         try {
             $jsonRequest = json_decode($rawMessage, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new JsonRpcException('Parse error: Invalid JSON was received by the server.', -32700);
+                throw new JsonRpcException('Parse error: Invalid JSON was received by the server.', ErrorCode::PARSE_ERROR->value);
             }
 
             $request = isset($jsonRequest['id'])
-                ? JsonRpcRequest::from($jsonRequest, $this->transport->sessionId())
+                ? JsonRpcRequest::from($jsonRequest)
                 : JsonRpcNotification::from($jsonRequest);
 
             if ($request instanceof JsonRpcNotification) {
                 return;
             }
 
-            if ($request->method === 'initialize') {
-                $this->handleInitializeMessage($request, $context);
+            $requestId = $request->id;
 
-                return;
+            if (!$request->isLegacy()) {
+                $this->validateProtocolMeta($request, $context);
             }
 
             if (!isset($this->methods[$request->method])) {
                 throw new JsonRpcException(
                     "The method [{$request->method}] was not found.",
-                    -32601,
+                    ErrorCode::METHOD_NOT_FOUND->value,
                     $request->id,
                 );
             }
 
             $this->handleMessage($request, $context);
         } catch (JsonRpcException $exception) {
-            $this->transport->send($exception->toJsonRpcResponse()->toJson());
+            $this->send($exception->toJsonRpcResponse(), $context);
         } catch (Throwable $exception) {
             if (Configure::read('debug')) {
                 throw $exception;
             }
 
-            $jsonRpcResponse = JsonRpcResponse::error(
-                $request?->id,
-                -32603,
+            $this->send(JsonRpcResponse::error(
+                $requestId,
+                ErrorCode::INTERNAL_ERROR->value,
                 'Something went wrong while processing the request.',
-            );
-
-            $this->transport->send($jsonRpcResponse->toJson());
+            ), $context);
         }
     }
 
@@ -270,8 +298,8 @@ abstract class Server
         $instructions = $this->resolveAttribute(Instructions::class);
 
         return new ServerContext(
-            supportedProtocolVersions: $this->supportedProtocolVersion ?: ProtocolVersion::supported(),
-            serverCapabilities: $this->capabilities,
+            supportedProtocolVersions: $this->supportedProtocolVersion ?: ProtocolVersion::serverSupported(),
+            serverCapabilities: $this->resolvedCapabilities(),
             implementation: new Implementation(
                 name: $name !== null ? $name->value : $this->name,
                 version: $version !== null ? $version->value : $this->version,
@@ -297,6 +325,48 @@ abstract class Server
     }
 
     /**
+     * Validate that a request carries the required protocol metadata.
+     *
+     * @param \Crustum\Mcp\Transport\JsonRpcRequest $request JSON-RPC request
+     * @param \Crustum\Mcp\Server\ServerContext $context Server context
+     * @return void
+     * @throws \Crustum\Mcp\Exception\JsonRpcException
+     */
+    protected function validateProtocolMeta(JsonRpcRequest $request, ServerContext $context): void
+    {
+        $meta = $request->meta() ?? [];
+
+        $expected = [
+            MetaKey::PROTOCOL_VERSION->value => 'is_string',
+            MetaKey::CLIENT_CAPABILITIES->value => fn(mixed $value): bool => is_array($value) && ($value === [] || !array_is_list($value)),
+        ];
+
+        foreach ($expected as $metaKey => $isValid) {
+            if (!array_key_exists($metaKey, $meta) || !$isValid($meta[$metaKey])) {
+                throw new JsonRpcException(
+                    "Invalid params: The request [_meta] is missing the required [{$metaKey}] member.",
+                    ErrorCode::INVALID_PARAMS->value,
+                    $request->id,
+                );
+            }
+        }
+
+        $requestedVersion = $meta[MetaKey::PROTOCOL_VERSION->value];
+
+        if (!in_array($requestedVersion, $context->supportedProtocolVersions, true)) {
+            throw new JsonRpcException(
+                'Unsupported protocol version',
+                ErrorCode::UNSUPPORTED_PROTOCOL_VERSION->value,
+                $request->id,
+                [
+                    'supported' => $context->supportedProtocolVersions,
+                    'requested' => $requestedVersion,
+                ],
+            );
+        }
+    }
+
+    /**
      * Handle a JSON-RPC request message.
      *
      * @param \Crustum\Mcp\Transport\JsonRpcRequest $request JSON-RPC request
@@ -308,18 +378,97 @@ abstract class Server
         $response = $this->runMethodHandle($request, $context);
 
         if (!is_iterable($response)) {
-            $this->transport->send($response->toJson());
+            $this->send($response, $context, $request);
 
             return;
         }
 
-        $this->transport->stream(function () use ($response): iterable {
+        $this->transport->stream(function () use ($request, $response, $context): iterable {
             foreach ($response as $message) {
-                $this->transport->send($message->toJson());
+                $this->send($message, $context, $request);
             }
 
             return [];
         });
+    }
+
+    /**
+     * Send a JSON-RPC response, completing every result with server info metadata.
+     *
+     * @param \Crustum\Mcp\Transport\JsonRpcResponse $response JSON-RPC response
+     * @param \Crustum\Mcp\Server\ServerContext $context Server context
+     * @param \Crustum\Mcp\Transport\JsonRpcRequest|null $request JSON-RPC request
+     * @return void
+     */
+    protected function send(JsonRpcResponse $response, ServerContext $context, ?JsonRpcRequest $request = null): void
+    {
+        if ($request instanceof JsonRpcRequest && array_key_exists('result', $response->content)) {
+            $result = (array)$response->content['result'];
+            $result['_meta'][MetaKey::SERVER_INFO->value] = $context->implementation->toArray();
+
+            $response->content['result'] = [
+                'resultType' => 'complete',
+                ...$this->resolveCacheHints($request, $context),
+                ...$result,
+            ];
+        }
+
+        $this->transport->send($response->toJson());
+    }
+
+    /**
+     * Declare per-method caching hints.
+     *
+     * @return array<string, \Crustum\Mcp\Server\Attributes\Cacheable>
+     */
+    protected function cacheHints(): array
+    {
+        return [];
+    }
+
+    /**
+     * Resolve caching hints for a request result.
+     *
+     * @param \Crustum\Mcp\Transport\JsonRpcRequest $request JSON-RPC request
+     * @param \Crustum\Mcp\Server\ServerContext $context Server context
+     * @return array<string, int|string>
+     */
+    protected function resolveCacheHints(JsonRpcRequest $request, ServerContext $context): array
+    {
+        if (!in_array($request->method, self::CACHEABLE_METHODS, true)) {
+            return [];
+        }
+
+        if (isset($request->params['inputResponses']) || isset($request->params['requestState'])) {
+            return [];
+        }
+
+        $cacheable = $this->resourceCacheable($request, $context)
+            ?? $this->cacheHints()[$request->method]
+            ?? $this->resolveAttribute(Cacheable::class)
+            ?? new Cacheable();
+
+        return $cacheable->toArray();
+    }
+
+    /**
+     * Resolve the caching hint declared on the requested resource.
+     *
+     * @param \Crustum\Mcp\Transport\JsonRpcRequest $request JSON-RPC request
+     * @param \Crustum\Mcp\Server\ServerContext $context Server context
+     * @return \Crustum\Mcp\Server\Attributes\Cacheable|null
+     */
+    protected function resourceCacheable(JsonRpcRequest $request, ServerContext $context): ?Cacheable
+    {
+        if ($request->method !== 'resources/read') {
+            return null;
+        }
+
+        try {
+            return $this->resolveResource($request->get('uri'), $context)->cacheable();
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     /**
@@ -353,52 +502,33 @@ abstract class Server
     }
 
     /**
-     * Handle the MCP initialize handshake.
+     * Merge declared extensions into the advertised capabilities.
      *
-     * @param \Crustum\Mcp\Transport\JsonRpcRequest $request JSON-RPC request
-     * @param \Crustum\Mcp\Server\ServerContext $context Server context
-     * @return void
+     * @return array<string, mixed>
      */
-    protected function handleInitializeMessage(JsonRpcRequest $request, ServerContext $context): void
+    protected function resolvedCapabilities(): array
     {
-        $response = (new Initialize())->handle($request, $context);
-        $sessionId = $this->generateSessionId();
+        $extensions = [];
 
-        EventManager::instance()->dispatch(new SessionInitializedEvent(
-            $this,
-            $sessionId,
-            $request->params['clientInfo'] ?? null,
-            $request->params['protocolVersion'] ?? null,
-            $request->params['capabilities'] ?? null,
-        ));
+        foreach ($this->extensions as $extension) {
+            $extensions[$extension->value] = (object)[];
+        }
 
-        $this->transport->send($response->toJson(), $sessionId);
+        return $extensions === []
+            ? $this->capabilities
+            : [...$this->capabilities, 'extensions' => $extensions];
     }
 
     /**
-     * Generate a new MCP session identifier.
-     *
-     * @return string
-     */
-    protected function generateSessionId(): string
-    {
-        return bin2hex(random_bytes(16));
-    }
-
-    /**
-     * Detect and register UI capability when app resources are present.
+     * Detect and register the UI extension when app resources are present.
      *
      * @return void
      */
     protected function detectUiCapability(): void
     {
-        if (array_key_exists(self::CAPABILITY_UI, $this->capabilities)) {
-            return;
-        }
-
         foreach ($this->resources as $resource) {
             if (is_subclass_of($resource, AppResource::class)) {
-                $this->addCapability(self::CAPABILITY_UI);
+                $this->extensions[] = Extension::Ui;
 
                 return;
             }
@@ -410,9 +540,9 @@ abstract class Server
      *
      * @param string $name Method name
      * @param array<int, mixed> $arguments Method arguments
-     * @return \Crustum\Mcp\Server\Testing\PendingTestResponse|\Crustum\Mcp\Server\Testing\TestResponse
+     * @return \Crustum\Mcp\Server\Testing\PendingTestResponse|\Crustum\Mcp\Server\Testing\TestResponse|\Crustum\Mcp\Server\Testing\TestListResponse
      */
-    public static function __callStatic(string $name, array $arguments): PendingTestResponse|TestResponse
+    public static function __callStatic(string $name, array $arguments): PendingTestResponse|TestResponse|TestListResponse
     {
         $pendingTestResponse = new PendingTestResponse(static::class);
 

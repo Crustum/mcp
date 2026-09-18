@@ -13,12 +13,27 @@ use Crustum\Mcp\Server\Attributes\Version;
 #[Instructions('Instructions describing how to use the server and its features.')]
 class {{ class }} extends Server
 {
-    public array $tools = [
+    /**
+     * The tools registered with this MCP server.
+     *
+     * @var array<int, class-string<\Crustum\Mcp\Server\Tool>|\Crustum\Mcp\Server\Tool>
+     */
+    protected array $tools = [
     ];
 
-    public array $resources = [
+    /**
+     * The resources registered with this MCP server.
+     *
+     * @var array<int, class-string<\Crustum\Mcp\Server\Resource>|\Crustum\Mcp\Server\Resource>
+     */
+    protected array $resources = [
     ];
 
-    public array $prompts = [
+    /**
+     * The prompts registered with this MCP server.
+     *
+     * @var array<int, class-string<\Crustum\Mcp\Server\Prompt>|\Crustum\Mcp\Server\Prompt>
+     */
+    protected array $prompts = [
     ];
 }

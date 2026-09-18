@@ -139,6 +139,7 @@ it('registers a connect route that redirects to the authorization server', funct
             'issuer' => 'https://auth.test',
             'authorization_endpoint' => 'https://auth.test/authorize',
             'token_endpoint' => 'https://auth.test/token',
+            'code_challenge_methods_supported' => ['S256'],
         ]),
     ]);
 
@@ -254,6 +255,7 @@ it('forwards challenge metadata and scope from the connect route into discovery'
             'issuer' => 'https://auth.test',
             'authorization_endpoint' => 'https://auth.test/authorize',
             'token_endpoint' => 'https://auth.test/token',
+            'code_challenge_methods_supported' => ['S256'],
         ]),
     ]);
 

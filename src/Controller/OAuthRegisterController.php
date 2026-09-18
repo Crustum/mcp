@@ -31,11 +31,11 @@ class OAuthRegisterController extends AppController
         $errors = $validator->validate($data);
 
         if ($errors !== []) {
-            $isRedirectError = $this->hasRedirectUriError($errors);
+            $redirectError = $this->firstRedirectUriError($data, $errors);
 
             return $this->json([
-                'error' => $isRedirectError ? 'invalid_redirect_uri' : 'invalid_client_metadata',
-                'error_description' => $this->firstErrorMessage($errors),
+                'error' => $redirectError !== '' ? 'invalid_redirect_uri' : 'invalid_client_metadata',
+                'error_description' => $redirectError !== '' ? $redirectError : $this->firstErrorMessage($errors),
             ], 400);
         }
 
@@ -57,6 +57,8 @@ class OAuthRegisterController extends AppController
             );
 
             $this->grantMcpScope($client);
+
+            $metadata = $this->persistClientMetadata($client, $data);
         } catch (Throwable $throwable) {
             OAuthDebugLog::error($throwable->getMessage(), ['exception' => $throwable]);
 
@@ -73,6 +75,7 @@ class OAuthRegisterController extends AppController
             'redirect_uris' => $client->redirect_uris,
             'scope' => Registrar::OAUTH_SCOPE,
             'token_endpoint_auth_method' => 'none',
+            ...$metadata,
         ], 201);
     }
 
@@ -103,6 +106,44 @@ class OAuthRegisterController extends AppController
 
         $fresh->set('scopes', $merged);
         $table->saveOrFail($fresh);
+    }
+
+    /**
+     * Persist RFC 7591 client metadata when the clients table supports the columns.
+     *
+     * @param mixed $client Created OAuth client
+     * @param array<string, mixed> $validated Validated registration payload
+     * @return array<string, mixed>
+     */
+    protected function persistClientMetadata(mixed $client, array $validated): array
+    {
+        if (!$client instanceof Client) {
+            return [];
+        }
+
+        $table = Tessera::clientsTable();
+        $supported = array_values(array_intersect(['logo_uri', 'client_uri'], $table->getSchema()->columns()));
+
+        if ($supported === []) {
+            return [];
+        }
+
+        $metadata = array_filter(array_intersect_key($validated, array_flip($supported)));
+
+        if ($metadata !== []) {
+            $entity = $table->get($client->id);
+
+            foreach (array_keys($metadata) as $field) {
+                $entity->setAccess($field, true);
+            }
+
+            $entity = $table->patchEntity($entity, $metadata);
+            $table->saveOrFail($entity);
+        }
+
+        $fresh = $table->get($client->id);
+
+        return array_filter(array_intersect_key($fresh->toArray(), array_flip($supported)));
     }
 
     /**
@@ -165,6 +206,29 @@ class OAuthRegisterController extends AppController
                 },
             ]);
 
+        foreach (['logo_uri', 'client_uri'] as $field) {
+            $validator
+                ->allowEmptyString($field)
+                ->scalar($field)
+                ->maxLength($field, 2048)
+                ->add($field, 'httpUrl', [
+                    'rule' => static function (mixed $value): bool {
+                        if ($value === null || $value === '') {
+                            return true;
+                        }
+
+                        if (!is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+                            return false;
+                        }
+
+                        $scheme = strtolower((string)parse_url($value, PHP_URL_SCHEME));
+
+                        return $scheme === 'http' || $scheme === 'https';
+                    },
+                    'message' => 'The provided value must be an http(s) URL.',
+                ]);
+        }
+
         return $validator;
     }
 
@@ -172,12 +236,13 @@ class OAuthRegisterController extends AppController
      * Validate a single redirect URI against MCP allow-lists.
      *
      * @param string $value Redirect URI
+     * @param string $attribute Attribute name used in error messages
      * @return string|true
      */
-    protected function validateRedirectUri(string $value): true|string
+    protected function validateRedirectUri(string $value, string $attribute = 'redirect_uris'): true|string
     {
         if (!$this->isValidRedirectUri($value)) {
-            return 'redirect_uris is not a valid URL.';
+            return "{$attribute} is not a valid URL.";
         }
 
         $scheme = parse_url($value, PHP_URL_SCHEME);
@@ -200,7 +265,7 @@ class OAuthRegisterController extends AppController
             }
         }
 
-        return 'redirect_uris is not a permitted redirect domain.';
+        return "{$attribute} is not a permitted redirect domain.";
     }
 
     /**
@@ -338,6 +403,88 @@ class OAuthRegisterController extends AppController
     protected function hasRedirectUriError(array $errors): bool
     {
         return array_any(array_keys($errors), fn(string $key): bool => str_starts_with($key, 'redirect_uris'));
+    }
+
+    /**
+     * Resolve the redirect error message, preferring per-item messages.
+     *
+     * @param array<string, mixed> $data Registration payload
+     * @param array<string, mixed> $errors Validator errors
+     * @return string
+     */
+    protected function firstRedirectUriError(array $data, array $errors): string
+    {
+        $itemErrors = $this->redirectUriItemErrors($data);
+
+        if ($itemErrors !== []) {
+            return reset($itemErrors);
+        }
+
+        return $this->firstRedirectUriMessage($errors);
+    }
+
+    /**
+     * Validate each redirect URI item, keyed per upstream (`redirect_uris.0 …`).
+     *
+     * @param array<string, mixed> $data Registration payload
+     * @return array<string, string>
+     */
+    protected function redirectUriItemErrors(array $data): array
+    {
+        $uris = $data['redirect_uris'] ?? null;
+
+        if (!is_array($uris)) {
+            return [];
+        }
+
+        $itemErrors = [];
+
+        foreach (array_values($uris) as $index => $uri) {
+            $attribute = "redirect_uris.{$index}";
+
+            if (!is_string($uri)) {
+                $itemErrors[$attribute] = "{$attribute} is not a valid URL.";
+
+                continue;
+            }
+
+            $result = $this->validateRedirectUri($uri, $attribute);
+
+            if ($result !== true) {
+                $itemErrors[$attribute] = $result;
+            }
+        }
+
+        return $itemErrors;
+    }
+
+    /**
+     * Extract the first validator message for redirect URI fields.
+     *
+     * @param array<string, mixed> $errors Validator errors
+     * @return string
+     */
+    protected function firstRedirectUriMessage(array $errors): string
+    {
+        foreach ($errors as $field => $fieldErrors) {
+            if (!str_starts_with($field, 'redirect_uris')) {
+                continue;
+            }
+
+            if (is_string($fieldErrors)) {
+                return $fieldErrors;
+            }
+
+            if (is_array($fieldErrors)) {
+                foreach ($fieldErrors as $message) {
+                    if (is_string($message)) {
+                        return $message;
+                    }
+                }
+            }
+        }
+
+        return '';
     }
 
     /**

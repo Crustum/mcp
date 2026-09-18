@@ -13,6 +13,7 @@ use Crustum\Mcp\Client\Transport\HttpTransport;
 use Crustum\Mcp\Schema\Implementation;
 use Override;
 use SensitiveParameter;
+use Throwable;
 
 /**
  * MCP client for remote HTTP servers.
@@ -106,14 +107,10 @@ class WebClient extends Client
 
         $config = $this->oAuthConfig;
 
-        if ($config->redirectUri === null && $this->name !== null) {
+        if ($this->name !== null && $config->redirectUri === null) {
             $config = clone $config;
 
-            $callbackUrl = OAuthRouteRegistrar::callbackUrl($this->name);
-
-            if ($callbackUrl !== null && $callbackUrl !== '') {
-                $config->redirectUri = $callbackUrl;
-            }
+            $config->redirectUri = $this->canonicalRouteUrl("mcp.oauth.{$this->name}.callback");
         }
 
         return new OAuthClient(
@@ -122,7 +119,25 @@ class WebClient extends Client
             $resourceMetadataUrl,
             $challengeScope,
             session: $session,
+            clientIdMetadataUrl: $this->name === null
+                ? null
+                : $this->canonicalRouteUrl("mcp.oauth.{$this->name}.client-metadata"),
         );
+    }
+
+    /**
+     * Resolve a canonical route URL for OAuth flows.
+     *
+     * @param string $name Route name
+     * @return string|null
+     */
+    protected function canonicalRouteUrl(string $name): ?string
+    {
+        try {
+            return OAuthRouteRegistrar::url($name);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

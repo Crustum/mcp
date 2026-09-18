@@ -7,6 +7,7 @@ use Cake\Http\CallbackStream;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
 use Closure;
+use Crustum\Mcp\Enums\ErrorCode;
 use Crustum\Mcp\Server\Contracts\Transport;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -17,18 +18,14 @@ class HttpTransport implements Transport
 {
     /**
      * @param \Cake\Http\ServerRequest $request Incoming HTTP request
-     * @param string $sessionId MCP session identifier
      * @param (\Closure(string): void)|null $handler Message handler
      * @param string|null $reply Serialized reply payload
-     * @param string|null $replySessionId Reply session identifier
      * @param \Closure|null $stream Stream callback
      */
     public function __construct(
         protected ServerRequest $request,
-        protected string $sessionId,
         protected ?Closure $handler = null,
         protected ?string $reply = null,
-        protected ?string $replySessionId = null,
         protected ?Closure $stream = null,
     ) {
     }
@@ -44,14 +41,13 @@ class HttpTransport implements Transport
     /**
      * @inheritDoc
      */
-    public function send(string $message, ?string $sessionId = null): void
+    public function send(string $message): void
     {
         if ($this->stream instanceof Closure) {
             $this->sendStreamMessage($message);
         }
 
         $this->reply = $message;
-        $this->replySessionId = $sessionId;
     }
 
     /**
@@ -91,10 +87,8 @@ class HttpTransport implements Transport
             return $this->applyHeaders($response);
         }
 
-        $statusCode = $this->reply === null ? 202 : 200;
-
         return $this->applyHeaders(new Response([
-            'status' => $statusCode,
+            'status' => $this->statusCode(),
             'type' => 'json',
             'body' => $this->reply ?? '',
         ]));
@@ -129,26 +123,39 @@ class HttpTransport implements Transport
     }
 
     /**
-     * Apply MCP session headers to a response.
+     * Resolve the HTTP status code for the current reply.
+     *
+     * @return int
+     */
+    protected function statusCode(): int
+    {
+        // Must be 202 - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages
+        if ($this->reply === null) {
+            return 202;
+        }
+
+        $reply = json_decode($this->reply, true);
+
+        if (!is_array($reply) || !is_array($reply['error'] ?? null)) {
+            return 200;
+        }
+
+        return match ($reply['error']['code'] ?? null) {
+            ErrorCode::METHOD_NOT_FOUND->value => 404,
+            ErrorCode::INTERNAL_ERROR->value => 500,
+            default => 400,
+        };
+    }
+
+    /**
+     * Apply MCP headers to a response.
      *
      * @param \Cake\Http\Response $response Response instance
      * @return \Cake\Http\Response
      */
     protected function applyHeaders(Response $response): Response
     {
-        foreach ($this->sessionHeaders() as $name => $value) {
-            $response = $response->withHeader($name, $value);
-        }
-
         return $response;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function sessionId(): ?string
-    {
-        return $this->sessionId;
     }
 
     /**
@@ -174,20 +181,6 @@ class HttpTransport implements Transport
         }
 
         flush();
-    }
-
-    /**
-     * Build optional MCP session response headers.
-     *
-     * @return array<string, string>
-     */
-    protected function sessionHeaders(): array
-    {
-        if ($this->replySessionId === null) {
-            return [];
-        }
-
-        return ['MCP-Session-Id' => $this->replySessionId];
     }
 
     /**

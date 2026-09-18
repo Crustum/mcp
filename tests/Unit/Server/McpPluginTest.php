@@ -94,7 +94,9 @@ it('sets the container registry from the application container', function (): vo
 
     $plugin->bootstrap($app);
 
-    expect(ContainerRegistry::getInstance())->toBe($app->getContainer());
+    $container = $app->getContainer();
+
+    expect(ContainerRegistry::getInstance())->toBe($container);
 });
 
 it('loads the mcp sdk from resources js', function (): void {

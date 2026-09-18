@@ -23,7 +23,7 @@ class FakeTransporter implements Transport
     /**
      * @inheritDoc
      */
-    public function send(string $message, ?string $sessionId = null): void
+    public function send(string $message): void
     {
     }
 
@@ -33,14 +33,6 @@ class FakeTransporter implements Transport
     public function run(): null
     {
         throw new LogicException('Not implemented.');
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function sessionId(): ?string
-    {
-        return uniqid();
     }
 
     /**

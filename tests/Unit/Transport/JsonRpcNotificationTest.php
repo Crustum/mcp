@@ -81,3 +81,56 @@ it('serializes to json without an id', function (): void {
 
     expect($notification->toJson())->toEqual('{"jsonrpc":"2.0","method":"notifications\/initialized"}');
 });
+
+it('rejects scalar params', function (): void {
+    $this->expectException(JsonRpcException::class);
+    $this->expectExceptionMessage('Invalid params: The [params] member must be an object.');
+    $this->expectExceptionCode(-32602);
+
+    JsonRpcNotification::from([
+        'jsonrpc' => '2.0',
+        'method' => 'notifications/test',
+        'params' => 'bad',
+    ]);
+});
+
+it('rejects list params', function (): void {
+    $this->expectException(JsonRpcException::class);
+    $this->expectExceptionMessage('Invalid params: The [params] member must be an object.');
+    $this->expectExceptionCode(-32602);
+
+    JsonRpcNotification::from([
+        'jsonrpc' => '2.0',
+        'method' => 'notifications/test',
+        'params' => ['a', 'b'],
+    ]);
+});
+
+it('accepts object params', function (): void {
+    $notification = JsonRpcNotification::from([
+        'jsonrpc' => '2.0',
+        'method' => 'notifications/test',
+        'params' => ['key' => 'value'],
+    ]);
+
+    expect($notification->params)->toEqual(['key' => 'value']);
+});
+
+it('accepts empty params', function (): void {
+    $notification = JsonRpcNotification::from([
+        'jsonrpc' => '2.0',
+        'method' => 'notifications/test',
+        'params' => [],
+    ]);
+
+    expect($notification->params)->toEqual([]);
+});
+
+it('accepts missing params', function (): void {
+    $notification = JsonRpcNotification::from([
+        'jsonrpc' => '2.0',
+        'method' => 'notifications/test',
+    ]);
+
+    expect($notification->params)->toEqual([]);
+});

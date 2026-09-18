@@ -5,6 +5,7 @@ namespace Crustum\Mcp;
 
 use Cake\Collection\Collection;
 use Cake\Core\Configure;
+use Cake\Utility\Hash;
 use Crustum\Mcp\Client\ClientManager;
 use Crustum\Mcp\Client\Contracts\Transport;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
@@ -15,7 +16,10 @@ use Crustum\Mcp\Client\Methods\Resources\ListResources;
 use Crustum\Mcp\Client\Methods\Resources\ReadResource;
 use Crustum\Mcp\Client\Methods\Tools\CallTool;
 use Crustum\Mcp\Client\Methods\Tools\ListTools;
+use Crustum\Mcp\Client\Primitives\Tool;
 use Crustum\Mcp\Client\Protocol;
+use Crustum\Mcp\Client\ResponseCache;
+use Crustum\Mcp\Client\Schema\DiscoverResult;
 use Crustum\Mcp\Client\Schema\InitializeResult;
 use Crustum\Mcp\Client\Schema\PromptResult;
 use Crustum\Mcp\Client\Schema\ResourceReadResult;
@@ -23,7 +27,12 @@ use Crustum\Mcp\Client\Schema\ToolResult;
 use Crustum\Mcp\Client\Transport\HttpTransport;
 use Crustum\Mcp\Client\Transport\StdioTransport;
 use Crustum\Mcp\Client\Transport\TransportFactory;
+use Crustum\Mcp\Enums\ErrorCode;
+use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Exception\ClientException;
+use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Schema\Implementation;
+use Crustum\Mcp\Support\MirroredParameters;
 
 /**
  * MCP client for local and remote servers.
@@ -132,6 +141,32 @@ class Client
     }
 
     /**
+     * Enable client-side response caching.
+     *
+     * @param string|null $store Cache engine name (null = default)
+     * @param string|null $for Authorization context discriminator
+     * @return static
+     */
+    public function withCache(?string $store = null, ?string $for = null): static
+    {
+        $this->protocol->useCache(new ResponseCache($store, $for));
+
+        return $this;
+    }
+
+    /**
+     * Disable client-side response caching.
+     *
+     * @return static
+     */
+    public function withoutCache(): static
+    {
+        $this->protocol->useCache(null);
+
+        return $this;
+    }
+
+    /**
      * Connect and initialize the MCP session.
      *
      * @return static
@@ -174,6 +209,85 @@ class Client
     }
 
     /**
+     * Get the discover handshake result.
+     *
+     * @return \Crustum\Mcp\Client\Schema\DiscoverResult|null
+     */
+    public function discoverResult(): ?DiscoverResult
+    {
+        return $this->protocol->discoverResult();
+    }
+
+    /**
+     * Get the negotiated server capabilities.
+     *
+     * @return array<string, mixed>
+     */
+    public function capabilities(): array
+    {
+        $this->protocol->connect();
+
+        return $this->protocol->capabilities();
+    }
+
+    /**
+     * Get the negotiated server implementation.
+     *
+     * @return \Crustum\Mcp\Schema\Implementation|null
+     */
+    public function serverInfo(): ?Implementation
+    {
+        $this->protocol->connect();
+
+        return $this->protocol->serverInfo();
+    }
+
+    /**
+     * Get the negotiated server instructions.
+     *
+     * @return string|null
+     */
+    public function instructions(): ?string
+    {
+        $this->protocol->connect();
+
+        return $this->protocol->instructions();
+    }
+
+    /**
+     * Pin the protocol version used by the client.
+     *
+     * @param \Crustum\Mcp\Enums\ProtocolVersion|null $version Protocol version to pin
+     * @return static
+     */
+    public function withProtocolVersion(?ProtocolVersion $version): static
+    {
+        if ($version instanceof ProtocolVersion && !in_array($version->value, ProtocolVersion::clientSupported(), true)) {
+            throw new ClientException(sprintf(
+                'This client does not support protocol version [%s]. It supports [%s].',
+                $version->value,
+                implode(', ', ProtocolVersion::clientSupported()),
+            ));
+        }
+
+        $this->protocol->pinProtocolVersion($version);
+
+        return $this;
+    }
+
+    /**
+     * Get the negotiated protocol version.
+     *
+     * @return \Crustum\Mcp\Enums\ProtocolVersion
+     */
+    public function protocolVersion(): ProtocolVersion
+    {
+        $this->protocol->connect();
+
+        return $this->protocol->connectionProtocol();
+    }
+
+    /**
      * Ping the MCP server.
      *
      * @return void
@@ -206,13 +320,34 @@ class Client
     /**
      * Call a tool on the MCP server.
      *
-     * @param string $name Tool name
+     * @param \Crustum\Mcp\Client\Primitives\Tool|string $tool Tool primitive or name
      * @param array<string, mixed> $arguments Tool arguments
      * @return \Crustum\Mcp\Client\Schema\ToolResult
      */
-    public function callTool(string $name, array $arguments = []): ToolResult
+    public function callTool(Tool|string $tool, array $arguments = []): ToolResult
     {
-        return (new CallTool($name, $arguments))->handle($this->protocol);
+        $name = $tool instanceof Tool ? $tool->name : $tool;
+        $mirroredParameters = $tool instanceof Tool ? $tool->mirroredParameters() : null;
+
+        try {
+            return (new CallTool($name, $arguments, $mirroredParameters))->handle($this->protocol);
+        } catch (JsonRpcException $jsonRpcException) {
+            if ($jsonRpcException->getCode() !== ErrorCode::HEADER_MISMATCH->value) {
+                throw $jsonRpcException;
+            }
+
+            $refreshedTools = $this->tools()->toArray();
+            $refreshed = ($refreshedTools[$name] ?? null)?->mirroredParameters();
+
+            if (
+                !$refreshed instanceof MirroredParameters
+                || $refreshed->headers($arguments) === ($mirroredParameters?->headers($arguments) ?? [])
+            ) {
+                throw $jsonRpcException;
+            }
+
+            return (new CallTool($name, $arguments, $refreshed))->handle($this->protocol);
+        }
     }
 
     /**
@@ -293,6 +428,8 @@ class Client
             'name' => null,
             'clientInfo' => $this->clientInfo,
             'transport' => $this->transport->recipe(),
+            'protocolVersion' => $this->protocol->pinnedProtocolVersion()?->value,
+            'cache' => $this->protocol->cache(),
         ];
     }
 
@@ -304,21 +441,26 @@ class Client
      */
     public function __unserialize(array $data): void
     {
-        $this->name = $data['name'] ?? null;
+        $this->name = Hash::get($data, 'name');
+        $cache = null;
 
         if ($this->name !== null) {
             $resolved = ClientManager::getInstance()->build($this->name);
 
             $this->transport = $resolved->transport;
             $this->clientInfo = $resolved->clientInfo;
+            $pinned = $resolved->protocol->pinnedProtocolVersion();
         } else {
-            $this->clientInfo = $data['clientInfo'];
-            $this->transport = TransportFactory::fromRecipe($data['transport']);
+            $this->clientInfo = Hash::get($data, 'clientInfo');
+            $this->transport = TransportFactory::fromRecipe(Hash::get($data, 'transport'));
+            $pinned = ProtocolVersion::tryFrom((string)Hash::get($data, 'protocolVersion'));
+            $cache = Hash::get($data, 'cache');
         }
 
         $this->clientInfo ??= $this->defaultClientInfo();
 
-        $this->protocol = new Protocol($this->transport, $this->clientInfo);
+        $this->protocol = new Protocol($this->transport, $this->clientInfo, $pinned);
+        $this->protocol->useCache($cache instanceof ResponseCache ? $cache : null);
     }
 
     /**

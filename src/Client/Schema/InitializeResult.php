@@ -39,28 +39,27 @@ class InitializeResult
     {
         $protocolVersion = Hash::get($payload, 'protocolVersion');
         $capabilities = Hash::get($payload, 'capabilities');
-        $serverInfo = Hash::get($payload, 'serverInfo');
-        $serverName = Hash::get($serverInfo, 'name');
-        $serverVersion = Hash::get($serverInfo, 'version');
+        $serverInfo = Implementation::from(Hash::get($payload, 'serverInfo'));
         $instructions = Hash::get($payload, 'instructions');
 
-        if (!is_string($protocolVersion) || !in_array($protocolVersion, ProtocolVersion::clientSupported(), true)) {
-            throw new ClientException('The server negotiated an unsupported protocol version.');
+        $version = is_string($protocolVersion) ? ProtocolVersion::tryFrom($protocolVersion) : null;
+
+        if (!$version instanceof ProtocolVersion || !in_array($version->value, ProtocolVersion::initializeSupported(), true)) {
+            throw new ClientException(sprintf(
+                'The server chose protocol version [%s]. This client supports [%s].',
+                is_string($protocolVersion) ? $protocolVersion : 'none',
+                implode(', ', ProtocolVersion::initializeSupported()),
+            ));
         }
 
-        if (
-            !is_array($capabilities)
-            || !is_array($serverInfo)
-            || !is_string($serverName)
-            || !is_string($serverVersion)
-        ) {
+        if (!is_array($capabilities) || !$serverInfo instanceof Implementation) {
             throw new ClientException('Invalid initialize response from server.');
         }
 
         return new self(
             protocolVersion: $protocolVersion,
             capabilities: $capabilities,
-            serverInfo: Implementation::from($serverInfo),
+            serverInfo: $serverInfo,
             instructions: is_string($instructions) ? $instructions : null,
         );
     }

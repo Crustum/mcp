@@ -17,10 +17,4 @@ class ExampleServer extends Server
         DailyPlanResource::class,
         RecentMeetingRecordingResource::class,
     ];
-
-    #[\Override]
-    protected function generateSessionId(): string
-    {
-        return 'overridden-' . uniqid();
-    }
 }

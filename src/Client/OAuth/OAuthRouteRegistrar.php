@@ -26,6 +26,13 @@ class OAuthRouteRegistrar
     protected static array $handlers = [];
 
     /**
+     * Registered client metadata document overrides.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    protected static array $clientMetadata = [];
+
+    /**
      * Clear registered OAuth callback handlers.
      *
      * @return void
@@ -33,6 +40,86 @@ class OAuthRouteRegistrar
     public static function clearHandlers(): void
     {
         static::$handlers = [];
+        static::$clientMetadata = [];
+    }
+
+    /**
+     * Resolve the client metadata document overrides for a named client.
+     *
+     * @param string $client Registered MCP client name
+     * @return array<string, mixed>
+     */
+    public static function clientMetadata(string $client): array
+    {
+        return static::$clientMetadata[$client] ?? [];
+    }
+
+    /**
+     * Resolve the canonical OAuth route URL.
+     *
+     * @param string $name Route name
+     * @return string
+     */
+    public static function url(string $name): string
+    {
+        $configured = static::configuredUrl($name);
+
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        $base = static::baseUrl();
+
+        if ($base === '') {
+            return Router::url(['_name' => $name], true);
+        }
+
+        return $base . Router::url(['_name' => $name], false);
+    }
+
+    /**
+     * Resolve a configured OAuth route URL override.
+     *
+     * @param string $name Route name
+     * @return string
+     */
+    protected static function configuredUrl(string $name): string
+    {
+        $suffix = str_ends_with($name, '.client-metadata') ? 'clientMetadata' : 'callback';
+
+        if (preg_match('/^mcp\.oauth\.([^.]+)\.(?:callback|client-metadata)$/', $name, $matches) === 1) {
+            $configured = Configure::read("Mcp.oauth.routes.{$matches[1]}.{$suffix}");
+
+            if (is_string($configured) && $configured !== '') {
+                return $configured;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Get the configured application base URL for OAuth routes.
+     *
+     * @return string
+     */
+    protected static function baseUrl(): string
+    {
+        foreach (
+            [
+            'Mcp.base_url',
+            'App.fullBaseUrl',
+            'App.url',
+            ] as $key
+        ) {
+            $configured = Configure::read($key);
+
+            if (is_string($configured) && $configured !== '') {
+                return rtrim($configured, '/');
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -44,6 +131,8 @@ class OAuthRouteRegistrar
      * @param array<int, string>|string $middleware Route middleware
      * @param string|null $connectUri Connect route path
      * @param string|null $callbackUri Callback route path
+     * @param string|null $clientMetadataUri Client metadata document route path
+     * @param array<string, mixed> $clientMetadata Client metadata overrides
      * @return void
      */
     public function register(
@@ -53,14 +142,18 @@ class OAuthRouteRegistrar
         array|string $middleware = [],
         ?string $connectUri = null,
         ?string $callbackUri = null,
+        ?string $clientMetadataUri = null,
+        array $clientMetadata = [],
     ): void {
         static::$handlers[$client] = $handler;
+        static::$clientMetadata[$client] = $clientMetadata;
 
         $connectPath = $connectUri ?? "mcp/{$client}/connect";
         $callbackPath = $callbackUri ?? "mcp/oauth/{$client}/callback";
+        $metadataPath = $clientMetadataUri ?? "mcp/oauth/{$client}/client-metadata.json";
         $middleware = is_array($middleware) ? $middleware : [$middleware];
 
-        $registerRoutes = function (RouteBuilder $builder) use ($client, $connectPath, $callbackPath): void {
+        $registerRoutes = function (RouteBuilder $builder) use ($client, $connectPath, $callbackPath, $metadataPath): void {
             $builder->connect(
                 $connectPath,
                 [
@@ -86,6 +179,22 @@ class OAuthRouteRegistrar
                 [
                     '_name' => "mcp.oauth.{$client}.callback",
                     '_method' => 'GET',
+                ],
+            );
+
+            $builder->connect(
+                $metadataPath,
+                [
+                    'plugin' => 'Mcp',
+                    'controller' => 'OAuth',
+                    'action' => 'clientMetadata',
+                    'clientName' => $client,
+                ],
+                [
+                    '_name' => "mcp.oauth.{$client}.client-metadata",
+                    '_method' => 'GET',
+                    'pass' => [],
+                    'persist' => [],
                 ],
             );
         };

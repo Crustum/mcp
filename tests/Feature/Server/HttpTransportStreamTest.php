@@ -16,7 +16,7 @@ function streamedTransportContent($response): string
 }
 
 it('streams iterable responses returned from the stream callback', function (): void {
-    $transport = new HttpTransport(new ServerRequest(), 'test-session');
+    $transport = new HttpTransport(new ServerRequest());
 
     $transport->stream(fn(): iterable => [
         '{"jsonrpc":"2.0","id":1,"result":[]}',
@@ -30,7 +30,7 @@ it('streams iterable responses returned from the stream callback', function (): 
 });
 
 it('streams generator responses returned from the stream callback', function (): void {
-    $transport = new HttpTransport(new ServerRequest(), 'test-session');
+    $transport = new HttpTransport(new ServerRequest());
 
     $transport->stream(function (): Generator {
         yield '{"jsonrpc":"2.0","id":3,"result":[]}';
@@ -44,7 +44,7 @@ it('streams generator responses returned from the stream callback', function ():
 });
 
 it('does not double emit when stream callback echoes directly', function (): void {
-    $transport = new HttpTransport(new ServerRequest(), 'test-session');
+    $transport = new HttpTransport(new ServerRequest());
 
     $transport->stream(function (): void {
         echo 'data: {"jsonrpc":"2.0","id":99,"result":[]}';

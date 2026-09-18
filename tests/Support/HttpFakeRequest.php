@@ -82,6 +82,17 @@ class HttpFakeRequest implements ArrayAccess
     }
 
     /**
+     * Determine whether every header is present with the expected value.
+     *
+     * @param array<string, string> $expected Expected header values
+     * @return bool
+     */
+    public function hasHeaders(array $expected): bool
+    {
+        return array_all($expected, fn(?string $value, string $name): bool => $this->hasHeader($name, $value));
+    }
+
+    /**
      * Get header values by name.
      *
      * @param string $name Header name
@@ -166,6 +177,10 @@ class HttpFakeRequest implements ArrayAccess
 
         if ($name === 'hasHeader') {
             return $this->hasHeader($arguments[0], $arguments[1] ?? null);
+        }
+
+        if ($name === 'hasHeaders') {
+            return $this->hasHeaders($arguments[0]);
         }
 
         if ($name === 'header') {

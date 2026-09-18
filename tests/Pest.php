@@ -7,7 +7,7 @@ use Crustum\Mcp\Client\OAuth\OAuthRouteRegistrar;
 use Crustum\Mcp\Test\Support\HttpFake;
 use Crustum\Mcp\Test\TestCase\McpTestCase;
 
-pest()->extend(McpTestCase::class)->in('TestCase', 'Feature', 'Unit');
+pest()->extend(McpTestCase::class)->in('TestCase', 'Feature', 'Integration', 'Unit');
 
 uses(ConsoleIntegrationTestTrait::class)->in('Feature/Command', 'Unit/Command');
 

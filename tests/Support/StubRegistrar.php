@@ -14,17 +14,17 @@ final class StubRegistrar extends Registrar
     /**
      * @var array<string, callable(): mixed>
      */
-    protected array $stubLocalServers = [];
+    protected array $stubLocalServers;
 
     /**
      * @var array<string, \Crustum\Mcp\Server\WebServerRegistration>
      */
-    protected array $stubWebServers = [];
+    protected array $stubWebServers;
 
     /**
      * @var array<string, callable(): mixed|\Crustum\Mcp\Server\WebServerRegistration>
      */
-    protected array $stubServers = [];
+    protected array $stubServers;
 
     /**
      * @param array<string, callable(): mixed> $localServers Local server starters

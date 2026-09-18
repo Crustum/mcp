@@ -20,6 +20,7 @@ class AuthServerMetadata
      * @param array<int, string> $codeChallengeMethodsSupported Supported PKCE methods
      * @param bool $authorizationResponseIssParameterSupported Whether iss is returned in authorization responses
      * @param array<int, string> $tokenEndpointAuthMethodsSupported Supported token endpoint auth methods
+     * @param bool $clientIdMetadataDocumentSupported Whether client ID metadata documents are supported
      */
     public function __construct(
         public string $issuer,
@@ -29,6 +30,7 @@ class AuthServerMetadata
         public array $codeChallengeMethodsSupported = [],
         public bool $authorizationResponseIssParameterSupported = false,
         public array $tokenEndpointAuthMethodsSupported = [],
+        public bool $clientIdMetadataDocumentSupported = false,
     ) {
     }
 
@@ -52,6 +54,7 @@ class AuthServerMetadata
             codeChallengeMethodsSupported: array_values(array_map(strval(...), (array)($data['code_challenge_methods_supported'] ?? []))),
             authorizationResponseIssParameterSupported: (bool)($data['authorization_response_iss_parameter_supported'] ?? false),
             tokenEndpointAuthMethodsSupported: array_values(array_map(strval(...), (array)($data['token_endpoint_auth_methods_supported'] ?? []))),
+            clientIdMetadataDocumentSupported: (bool)($data['client_id_metadata_document_supported'] ?? false),
         );
     }
 }

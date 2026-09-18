@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Client\Transport;
 
 use Crustum\Mcp\Client\Contracts\Transport;
+use Crustum\Mcp\Client\Exception\TimeoutException;
 use Crustum\Mcp\Exception\ClientException;
 use Symfony\Component\Process\Exception\ExceptionInterface;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
@@ -103,13 +104,6 @@ class StdioTransport implements Transport
     /**
      * @inheritDoc
      */
-    public function setProtocolVersion(string $version): void
-    {
-    }
-
-    /**
-     * @inheritDoc
-     */
     public function recipe(): array
     {
         return [
@@ -123,7 +117,7 @@ class StdioTransport implements Transport
     /**
      * @inheritDoc
      */
-    public function send(string $message): void
+    public function send(string $message, array $headers = []): void
     {
         if (!$this->input instanceof InputStream || !$this->process?->isRunning()) {
             throw new ClientException('Transport is not connected.');
@@ -157,7 +151,9 @@ class StdioTransport implements Transport
         try {
             $found = $process->waitUntil($this->bufferUntilNewline(...));
         } catch (ProcessTimedOutException) {
-            $this->failWith('Timed out while waiting for server response.');
+            $this->disconnect();
+
+            throw new TimeoutException('Timed out while waiting for server response.');
         }
 
         if (!$found) {

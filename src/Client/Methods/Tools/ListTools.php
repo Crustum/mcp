@@ -4,10 +4,12 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Client\Methods\Tools;
 
 use Cake\Collection\Collection;
+use Cake\Log\Log;
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Contracts\Method;
 use Crustum\Mcp\Client\Primitives\Tool;
 use Crustum\Mcp\Client\Trait\PaginatesListTrait;
+use Crustum\Mcp\Exception\MirroredParameterException;
 
 /**
  * MCP tools/list JSON-RPC method.
@@ -58,7 +60,16 @@ final class ListTools implements Method
         $tools = [];
 
         foreach ($payloads as $payload) {
-            $tool = Tool::from($this->client, $payload);
+            try {
+                $tool = Tool::from($this->client, $payload);
+            } catch (MirroredParameterException $mirroredParameterException) {
+                $name = is_string($payload['name'] ?? null) ? $payload['name'] : 'unknown';
+
+                Log::warning("Excluded the MCP tool [{$name}] from the tool list because {$mirroredParameterException->getMessage()}.");
+
+                continue;
+            }
+
             $tools[$tool->name] = $tool;
         }
 

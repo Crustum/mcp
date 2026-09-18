@@ -7,12 +7,20 @@ use Cake\Utility\Hash;
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Schema\ToolResult;
 use Crustum\Mcp\Exception\ClientException;
+use Crustum\Mcp\Support\MirroredParameters;
 
 /**
  * MCP tool primitive bound to a client instance.
  */
 class Tool
 {
+    /**
+     * Mirrored parameter headers declared by the tool schema.
+     *
+     * @var \Crustum\Mcp\Support\MirroredParameters
+     */
+    protected MirroredParameters $mirroredParameters;
+
     /**
      * Create a new tool primitive.
      *
@@ -24,6 +32,7 @@ class Tool
      * @param array<string, mixed>|null $outputSchema Tool output JSON schema
      * @param array<string, mixed> $annotations Tool annotations
      * @param array<string, mixed>|null $meta Tool metadata
+     * @throws \Crustum\Mcp\Exception\MirroredParameterException
      */
     public function __construct(
         protected ?Client $client,
@@ -35,6 +44,17 @@ class Tool
         public readonly array $annotations,
         public readonly ?array $meta,
     ) {
+        $this->mirroredParameters = MirroredParameters::fromSchema($inputSchema);
+    }
+
+    /**
+     * Get the mirrored parameter headers declared by the tool schema.
+     *
+     * @return \Crustum\Mcp\Support\MirroredParameters
+     */
+    public function mirroredParameters(): MirroredParameters
+    {
+        return $this->mirroredParameters;
     }
 
     /**
@@ -91,6 +111,6 @@ class Tool
             throw new ClientException("Tool [{$this->name}] is not bound to a client.");
         }
 
-        return $this->client->callTool($this->name, $arguments);
+        return $this->client->callTool($this, $arguments);
     }
 }

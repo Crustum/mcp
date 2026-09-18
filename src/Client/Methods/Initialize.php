@@ -20,9 +20,11 @@ class Initialize implements Method
      * Create a new initialize method.
      *
      * @param \Crustum\Mcp\Schema\Implementation $clientInfo Client implementation metadata
+     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version to offer
      */
     public function __construct(
         protected Implementation $clientInfo,
+        protected ProtocolVersion $protocolVersion = ProtocolVersion::V2025_11_25,
     ) {
     }
 
@@ -40,7 +42,7 @@ class Initialize implements Method
     public function params(): array
     {
         return [
-            'protocolVersion' => ProtocolVersion::LATEST->value,
+            'protocolVersion' => $this->protocolVersion->value,
             'capabilities' => (object)[],
             'clientInfo' => $this->clientInfo->toArray(),
         ];

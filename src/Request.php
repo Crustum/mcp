@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp;
 
+use Cake\Utility\Hash;
 use Cake\Validation\Validator;
 use Crustum\Mcp\Contracts\Arrayable;
 use Crustum\Mcp\Support\ValidationMessages;
@@ -29,13 +30,6 @@ class Request implements Arrayable
     protected array $arguments = [];
 
     /**
-     * MCP session identifier.
-     *
-     * @var string|null
-     */
-    protected ?string $sessionId = null;
-
-    /**
      * Request metadata.
      *
      * @var array<string, mixed>|null
@@ -60,18 +54,15 @@ class Request implements Arrayable
      * Create a new MCP request instance.
      *
      * @param array<string, mixed> $arguments Request arguments
-     * @param string|null $sessionId MCP session identifier
      * @param array<string, mixed>|null $meta Request metadata
      * @param string|null $uri Resource URI
      */
     public function __construct(
         array $arguments = [],
-        ?string $sessionId = null,
         ?array $meta = null,
         ?string $uri = null,
     ) {
         $this->arguments = $arguments;
-        $this->sessionId = $sessionId;
         $this->meta = $meta;
         $this->uri = $uri;
     }
@@ -106,7 +97,24 @@ class Request implements Arrayable
             return $this->arguments;
         }
 
-        return $this->arguments[$key] ?? $default;
+        if ($this->isWildcardPath($key)) {
+            $matches = Hash::extract($this->arguments, $key);
+
+            return $matches === [] ? $default : $matches;
+        }
+
+        return Hash::get($this->arguments, $key, $default);
+    }
+
+    /**
+     * Whether the key uses `Hash` wildcard matchers (`{n}`, `{s}`, `{*}`).
+     *
+     * @param string $key Argument key
+     * @return bool
+     */
+    protected function isWildcardPath(string $key): bool
+    {
+        return str_contains($key, '{n}') || str_contains($key, '{s}') || str_contains($key, '{*}');
     }
 
     /**
@@ -178,16 +186,6 @@ class Request implements Arrayable
     }
 
     /**
-     * Get the MCP session identifier.
-     *
-     * @return string|null
-     */
-    public function sessionId(): ?string
-    {
-        return $this->sessionId;
-    }
-
-    /**
      * Get request metadata.
      *
      * @return array<string, mixed>|null
@@ -216,17 +214,6 @@ class Request implements Arrayable
     public function setArguments(array $arguments): void
     {
         $this->arguments = $arguments;
-    }
-
-    /**
-     * Set the MCP session identifier.
-     *
-     * @param string|null $sessionId MCP session identifier
-     * @return void
-     */
-    public function setSessionId(?string $sessionId): void
-    {
-        $this->sessionId = $sessionId;
     }
 
     /**

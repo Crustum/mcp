@@ -6,6 +6,7 @@ use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Http\Session;
 use Crustum\Mcp\Client\ClientManager;
+use Crustum\Mcp\Test\Support\HttpFakeSequence;
 
 /**
  * Write configuration values using dot notation.
@@ -96,17 +97,90 @@ function collectionGet(Collection $collection, string|int $key): mixed
 }
 
 /**
+ * Build a legacy initialize handshake response.
+ *
+ * @param int $id Response identifier
+ * @param string $version Negotiated protocol version
  * @return string
  */
-function initializeResponse(): string
+function initializeResponse(int $id = 1, string $version = '2025-11-25'): string
 {
     return json_encode([
         'jsonrpc' => '2.0',
-        'id' => 1,
+        'id' => $id,
         'result' => [
-            'protocolVersion' => '2025-11-25',
+            'protocolVersion' => $version,
             'capabilities' => new stdClass(),
             'serverInfo' => ['name' => 'Test Server', 'version' => '1.0.0'],
+        ],
+    ]);
+}
+
+/**
+ * Build a modern server/discover response.
+ *
+ * @param int $id Response identifier
+ * @param array<int, string> $supportedVersions Supported protocol versions
+ * @return string
+ */
+function discoverResponse(int $id = 1, array $supportedVersions = ['2026-07-28']): string
+{
+    return json_encode([
+        'jsonrpc' => '2.0',
+        'id' => $id,
+        'result' => [
+            'resultType' => 'complete',
+            'supportedVersions' => $supportedVersions,
+            'capabilities' => ['tools' => ['listChanged' => false]],
+            'instructions' => 'Be nice.',
+            '_meta' => [
+                'io.modelcontextprotocol/serverInfo' => ['name' => 'Test Server', 'version' => '1.0.0'],
+            ],
+        ],
+    ]);
+}
+
+/**
+ * Begin a legacy HTTP endpoint that rejects the modern probe.
+ *
+ * @return \Crustum\Mcp\Test\Support\HttpFakeSequence
+ */
+function legacyEndpoint(): HttpFakeSequence
+{
+    return Http::fakeSequence()->push('Bad Request', 400);
+}
+
+/**
+ * Build a JSON-RPC method-not-found error response.
+ *
+ * @param int $id Response identifier
+ * @return string
+ */
+function methodNotFoundResponse(int $id = 1): string
+{
+    return json_encode([
+        'jsonrpc' => '2.0',
+        'id' => $id,
+        'error' => ['code' => -32601, 'message' => 'Method not found.'],
+    ]);
+}
+
+/**
+ * Build a JSON-RPC tools/call response.
+ *
+ * @param int $id Response identifier
+ * @param string $text Response text
+ * @return string
+ */
+function toolCallResponse(int $id, string $text): string
+{
+    return (string)json_encode([
+        'jsonrpc' => '2.0',
+        'id' => $id,
+        'result' => [
+            'resultType' => 'complete',
+            'content' => [['type' => 'text', 'text' => $text]],
+            'isError' => false,
         ],
     ]);
 }

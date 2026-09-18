@@ -6,7 +6,6 @@ namespace Crustum\Mcp;
 use Cake\Console\CommandCollection;
 use Cake\Core\BasePlugin;
 use Cake\Core\Configure;
-use Cake\Core\ContainerApplicationInterface;
 use Cake\Core\ContainerInterface;
 use Cake\Core\PluginApplicationInterface;
 use Cake\Log\Engine\FileLog;
@@ -85,6 +84,35 @@ class McpPlugin extends BasePlugin implements ManifestInterface
      * @var bool
      */
     protected static bool $clientDisconnectRegistered = false;
+
+    /**
+     * Bootstrap the plugin.
+     *
+     * @param \Cake\Core\PluginApplicationInterface $app Application instance
+     * @return void
+     */
+    #[Override]
+    public function bootstrap(PluginApplicationInterface $app): void
+    {
+        parent::bootstrap($app);
+
+        if (!Configure::check('Mcp')) {
+            if (file_exists(CONFIG . 'mcp.php')) {
+                Configure::load('mcp', 'default');
+            } elseif (file_exists($this->getConfigPath() . 'mcp.php')) {
+                Configure::load('Crustum/Mcp.mcp', 'default', false);
+            }
+        }
+
+        $app->getEventManager()->on('Application.buildContainer', function ($event): void {
+            $container = $event->getData('container');
+            ContainerRegistry::setInstance($container);
+        });
+
+        $this->registerMcpLogger();
+        $this->registerMcpScope();
+        $this->registerClientDisconnect();
+    }
 
     /**
      * Register plugin services in the container.
@@ -179,26 +207,6 @@ class McpPlugin extends BasePlugin implements ManifestInterface
         $commands->add('mcp inspector', McpInspectorCommand::class);
 
         return $commands;
-    }
-
-    /**
-     * Bootstrap the plugin.
-     *
-     * @param \Cake\Core\PluginApplicationInterface $app Application instance
-     * @return void
-     */
-    #[Override]
-    public function bootstrap(PluginApplicationInterface $app): void
-    {
-        parent::bootstrap($app);
-
-        if ($app instanceof ContainerApplicationInterface) {
-            ContainerRegistry::setInstance($app->getContainer());
-        }
-
-        $this->registerMcpLogger();
-        $this->registerMcpScope();
-        $this->registerClientDisconnect();
     }
 
     /**

@@ -7,7 +7,7 @@ metadata:
 ---
 # MCP Development
 
-**Alpha** — prefer package `docs/index.md` over the README. APIs may still move. There is no Ignis `search-docs` tool for MCP.
+**Alpha** — prefer package `docs/index.md` over the README. APIs may still move.
 
 ## Documentation
 
@@ -24,6 +24,12 @@ composer require crustum/mcp
 {{ assist.cakeCommand('plugin load Crustum/Mcp') }}
 {{ assist.cakeCommand('manifest install --plugin Crustum/Mcp') }}
 ```
+
+@ignissnippet("Register MCP Server", "php")
+use Crustum\Mcp\Server\Registrar;
+
+Registrar::web('demo', \App\Mcp\Servers\AppServer::class);
+@endignissnippet
 
 ### Creating MCP Primitives
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server;
 
 use Crustum\Mcp\Server\Annotations\Annotation;
+use Crustum\Mcp\Server\Attributes\Cacheable;
 use Crustum\Mcp\Server\Attributes\MimeType;
 use Crustum\Mcp\Server\Attributes\Uri;
 use Crustum\Mcp\Server\Contracts\HasUriTemplate;
@@ -55,6 +56,16 @@ abstract class Resource extends Primitive
         return $attribute !== null
             ? $attribute->value
             : ($this->uri !== '' ? $this->uri : $this->defaultUriScheme . '://resources/' . Str::kebab((new ReflectionClass($this))->getShortName()));
+    }
+
+    /**
+     * Get the declared caching hint, when one is present.
+     *
+     * @return \Crustum\Mcp\Server\Attributes\Cacheable|null
+     */
+    public function cacheable(): ?Cacheable
+    {
+        return $this->resolveAttribute(Cacheable::class);
     }
 
     /**
