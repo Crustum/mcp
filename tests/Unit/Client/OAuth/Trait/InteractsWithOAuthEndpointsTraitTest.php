@@ -21,7 +21,7 @@ it('limits discovery requests to http and https with a capped response size', fu
         ]),
     ]);
 
-    (new AuthServerDiscovery())->discover('https://mcp.test/mcp');
+    new AuthServerDiscovery()->discover('https://mcp.test/mcp');
 
     expect(HttpFake::$recorded)->not->toBe([]);
 
@@ -40,7 +40,7 @@ it('limits registration requests to http and https', function (): void {
 
     Http::fake(['https://auth.test/register' => Http::response(['client_id' => 'client-1'])]);
 
-    (new DynamicClientRegistration())->register('https://auth.test/register', 'https://app.test/callback');
+    new DynamicClientRegistration()->register('https://auth.test/register', 'https://app.test/callback');
 
     $recorded = HttpFake::$recorded;
 

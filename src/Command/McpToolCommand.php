@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Command;
 
-use Cake\Console\Arguments;
-use Cake\Console\ConsoleIo;
 use Crustum\Mcp\Support\Str;
 use Override;
 
@@ -80,7 +78,7 @@ class McpToolCommand extends McpBakeCommand
      * @inheritDoc
      */
     #[Override]
-    protected function templateVariables(string $name, Arguments $args, ConsoleIo $io): array
+    protected function templateVariables(string $name): array
     {
         return [
             'title' => Str::headline($name),

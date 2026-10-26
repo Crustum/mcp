@@ -85,7 +85,7 @@ it('mirrors annotated parameters into headers on a tool call', function (): void
     $transport->responses[] = toolsListResponse(2, [annotatedTool()]);
     $transport->responses[] = toolCallResponse(3, 'done');
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST);
     $tool = collectionGet($client->tools(), 'execute_sql');
 
     $result = $client->callTool($tool, ['region' => 'us-west1', 'query' => 'select 1']);
@@ -107,7 +107,7 @@ it('mirrors parameters when calling through the tool primitive', function (): vo
     $transport->responses[] = toolsListResponse(2, [annotatedTool()]);
     $transport->responses[] = toolCallResponse(3, 'done');
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST);
 
     collectionGet($client->tools(), 'execute_sql')->call(['region' => 'us-west1', 'query' => 'select 1']);
 
@@ -124,7 +124,7 @@ it('sends only the standard headers when calling a tool by name', function (): v
     $transport->responses[] = discoverResponse();
     $transport->responses[] = toolCallResponse(2, 'done');
 
-    (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST)->callTool('execute_sql', ['region' => 'us-west1']);
+    new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST)->callTool('execute_sql', ['region' => 'us-west1']);
 
     expect($transport->sentHeaders[1])
         ->toBe([
@@ -140,7 +140,7 @@ it('sends no mirrored headers on the legacy protocol era', function (): void {
     $transport->responses[] = toolsListResponse(2, [annotatedTool()]);
     $transport->responses[] = toolCallResponse(3, 'done');
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::V2025_11_25);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::V2025_11_25);
 
     collectionGet($client->tools(), 'execute_sql')->call(['region' => 'us-west1']);
 
@@ -163,7 +163,7 @@ it('excludes a tool whose annotation is invalid from the tool list', function ()
             ['name' => 'plain', 'description' => 'Fine', 'inputSchema' => ['type' => 'object']],
         ]);
 
-        $tools = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST)->tools();
+        $tools = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST)->tools();
 
         expect($tools)
             ->toHaveCount(1)
@@ -188,7 +188,7 @@ it('re-lists and retries once when the server reports a header mismatch', functi
     $transport->responses[] = toolsListResponse(3, [annotatedTool()]);
     $transport->responses[] = toolCallResponse(4, 'done');
 
-    $result = (new Client($transport))
+    $result = new Client($transport)
         ->withProtocolVersion(ProtocolVersion::LATEST)
         ->callTool('execute_sql', ['region' => 'us-west1', 'query' => 'select 1']);
 
@@ -208,7 +208,7 @@ it('does not retry when the refreshed definition mirrors nothing new', function 
         ['name' => 'execute_sql', 'description' => 'Runs SQL', 'inputSchema' => ['type' => 'object']],
     ]);
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST);
 
     expect(fn(): ToolResult => $client->callTool('execute_sql', ['region' => 'us-west1']))
         ->toThrow(
@@ -225,7 +225,7 @@ it('does not retry a tool call that fails for any other reason', function (): vo
     $transport->responses[] = discoverResponse();
     $transport->responses[] = methodNotFoundResponse(2);
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST);
 
     expect(fn(): ToolResult => $client->callTool('execute_sql', ['region' => 'us-west1']))
         ->toThrow(JsonRpcException::class, 'Method not found')

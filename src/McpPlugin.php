@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace Crustum\Mcp;
 
 use Cake\Console\CommandCollection;
+use Cake\Container\ContainerInterface;
 use Cake\Core\BasePlugin;
 use Cake\Core\Configure;
-use Cake\Core\ContainerInterface;
 use Cake\Core\PluginApplicationInterface;
 use Cake\Http\MiddlewareQueue;
 use Cake\Log\Engine\FileLog;
@@ -132,7 +132,7 @@ class McpPlugin extends BasePlugin
     /**
      * Register plugin services in the container.
      *
-     * @param \Cake\Core\ContainerInterface $container Container instance
+     * @param \Cake\Container\ContainerInterface $container Container instance
      * @return void
      */
     public function services(ContainerInterface $container): void

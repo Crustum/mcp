@@ -20,7 +20,7 @@ class OAuthCallbackController
      */
     public function callback(string $provider, TokenSet $token): Response
     {
-        return (new Response())
+        return new Response()
             ->withStatus(302)
             ->withLocation('/connected/' . $provider);
     }

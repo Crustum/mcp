@@ -6,7 +6,7 @@ It offers an expressive interface for defining servers, tools, resources, and pr
 
 ## Requirements
 
-* PHP 8.4+
+* PHP 8.5+
 
 See [Versions.md](docs/Versions.md) for the supported CakePHP versions.
 

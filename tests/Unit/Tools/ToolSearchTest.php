@@ -105,7 +105,7 @@ function callContextToolResponses(ServerContext $context, Tool $tool, array $arg
         ],
     ]);
 
-    $response = (new CallTool())->handle($request, $context);
+    $response = new CallTool()->handle($request, $context);
     $responses = $response instanceof JsonRpcResponse ? [$response] : iterator_to_array($response);
 
     return array_map(fn(JsonRpcResponse $response): array => $response->toArray(), $responses);

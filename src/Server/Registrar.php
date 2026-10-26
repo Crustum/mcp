@@ -249,7 +249,7 @@ class Registrar
         ?string $clientMetadataUri = null,
         array $clientMetadata = [],
     ): void {
-        (new OAuthRouteRegistrar())->register(
+        new OAuthRouteRegistrar()->register(
             $routes,
             $client,
             $handler,

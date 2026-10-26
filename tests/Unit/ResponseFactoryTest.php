@@ -28,14 +28,14 @@ it('creates a factory with multiple responses', function (): void {
 });
 
 it('supports fluent withMeta for result-level metadata', function (): void {
-    $factory = (new ResponseFactory(Response::text('Hello')))
+    $factory = new ResponseFactory(Response::text('Hello'))
         ->withMeta(['key' => 'value']);
 
     expect($factory->getMeta())->toEqual(['key' => 'value']);
 });
 
 it('supports withMeta with key-value signature', function (): void {
-    $factory = (new ResponseFactory(Response::text('Hello')))
+    $factory = new ResponseFactory(Response::text('Hello'))
         ->withMeta('key1', 'value1')
         ->withMeta('key2', 'value2');
 
@@ -43,7 +43,7 @@ it('supports withMeta with key-value signature', function (): void {
 });
 
 it('merges multiple withMeta calls', function (): void {
-    $factory = (new ResponseFactory(Response::text('Hello')))
+    $factory = new ResponseFactory(Response::text('Hello'))
         ->withMeta(['key1' => 'value1'])
         ->withMeta(['key2' => 'value1'])
         ->withMeta(['key2' => 'value2']);
@@ -52,14 +52,14 @@ it('merges multiple withMeta calls', function (): void {
 });
 
 it('supports Conditionable trait', function (): void {
-    $factory = (new ResponseFactory(Response::text('Hello')))
+    $factory = new ResponseFactory(Response::text('Hello'))
         ->when(true, fn($f): ResponseFactory => $f->withMeta(['conditional' => 'yes']));
 
     expect($factory->getMeta())->toEqual(['conditional' => 'yes']);
 });
 
 it('supports unless from Conditionable trait', function (): void {
-    $factory = (new ResponseFactory(Response::text('Hello')))
+    $factory = new ResponseFactory(Response::text('Hello'))
         ->unless(false, fn($f): ResponseFactory => $f->withMeta(['unless' => 'applied']));
 
     expect($factory->getMeta())->toEqual(['unless' => 'applied']);
@@ -67,7 +67,7 @@ it('supports unless from Conditionable trait', function (): void {
 
 it('separates content-level meta from result-level meta', function (): void {
     $response = Response::text('Hello')->withMeta(['content_meta' => 'content_value']);
-    $factory = (new ResponseFactory($response))
+    $factory = new ResponseFactory($response)
         ->withMeta(['result_meta' => 'result_value']);
 
     expect($factory->getMeta())->toEqual(['result_meta' => 'result_value'])
@@ -122,7 +122,7 @@ it('adds structured content with meta to ResponseFactory', function (): void {
 });
 
 it('merges multiple withStructuredContent calls', function (): void {
-    $factory = (new ResponseFactory(Response::text('Hello')))
+    $factory = new ResponseFactory(Response::text('Hello'))
         ->withStructuredContent(['key1' => 'value1'])
         ->withStructuredContent(['key2' => 'value1'])
         ->withStructuredContent(['key2' => 'value2']);

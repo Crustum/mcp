@@ -169,7 +169,7 @@ it('handles oauth registration endpoint', function (): void {
     ]);
 
     $this->assertResponseCode(201);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['client_id'])->toBeString()->not->toBe('')
         ->and(httpOAuthBody($body))->toMatchArray([
@@ -193,7 +193,7 @@ it('persists and returns supported registration metadata', function (array $colu
     ]);
 
     $this->assertResponseCode(201);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect(array_intersect_key($body, ['logo_uri' => true, 'client_uri' => true]))->toBe($expected)
         ->and(array_intersect_key(httpOAuthRow()->toArray(), ['logo_uri' => true, 'client_uri' => true]))
@@ -221,7 +221,7 @@ it('omits missing or null registration metadata from the response', function (?a
     ));
 
     $this->assertResponseCode(201);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body)->not->toHaveKey('logo_uri')
         ->and($body)->not->toHaveKey('client_uri');
@@ -242,7 +242,7 @@ it('rejects invalid registration metadata before creating a client', function (s
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['error'])->toBe('invalid_client_metadata')
         ->and(httpOAuthCount())->toBe(0);
@@ -259,7 +259,7 @@ it('rejects non-string redirect URIs before creating a client', function (): voi
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['error'])->toBe('invalid_redirect_uri')
         ->and(httpOAuthCount())->toBe(0);
@@ -271,7 +271,7 @@ it('rejects too many or too long redirect URIs before creating a client', functi
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['error'])->toBe('invalid_redirect_uri')
         ->and(httpOAuthCount())->toBe(0);
@@ -295,7 +295,7 @@ it('keeps redirect errors ahead of metadata errors', function (): void {
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body)->toBe([
         'error' => 'invalid_redirect_uri',
@@ -310,7 +310,7 @@ it('describes the redirect error when an earlier rule also fails', function (): 
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body)->toBe([
         'error' => 'invalid_redirect_uri',
@@ -335,7 +335,7 @@ it('returns invalid_client_metadata when client metadata is invalid', function (
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['error'])->toBe('invalid_client_metadata');
 });
@@ -383,7 +383,7 @@ it('handles oauth registration with allowed domains', function (): void {
     ]);
 
     $this->assertResponseCode(201);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect(httpOAuthBody($body))->toMatchArray([
         'redirect_uris' => ['http://localhost:3000/callback'],
@@ -442,7 +442,7 @@ it('rejects redirect URIs with userinfo', function (string $uri, array $domains)
     ]);
 
     $this->assertResponseCode(400);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['error'])->toBe('invalid_redirect_uri');
 })->with([
@@ -499,7 +499,7 @@ it('accepts custom scheme redirect URIs when the scheme is configured', function
     ]);
 
     $this->assertResponseCode(201);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['redirect_uris'])->toBe([$uri]);
 })->with([
@@ -559,16 +559,16 @@ it('returns json validation errors even without Accept application/json header',
 
     $this->assertResponseCode(400);
 
-    expect($this->_response->getHeaderLine('Content-Type'))->toContain('application/json');
+    expect($this->response->getHeaderLine('Content-Type'))->toContain('application/json');
 
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body)->toHaveKey('error')
         ->and($body)->toHaveKey('error_description');
 });
 
 it('persists the advertised mcp scope when clients are scope-restricted by default', function (): void {
-    $client = (new ClientRepository())->createAuthorizationCodeGrantClient(
+    $client = new ClientRepository()->createAuthorizationCodeGrantClient(
         'Scoped',
         ['http://localhost:3000/callback'],
         false,
@@ -582,7 +582,7 @@ it('persists the advertised mcp scope when clients are scope-restricted by defau
 });
 
 it('preserves scopes granted at creation when persisting the mcp scope', function (): void {
-    $client = (new ClientRepository())->createAuthorizationCodeGrantClient(
+    $client = new ClientRepository()->createAuthorizationCodeGrantClient(
         'Scoped',
         ['http://localhost:3000/callback'],
         false,
@@ -596,7 +596,7 @@ it('preserves scopes granted at creation when persisting the mcp scope', functio
 });
 
 it('does not duplicate the mcp scope when it was already granted at creation', function (): void {
-    $client = (new ClientRepository())->createAuthorizationCodeGrantClient(
+    $client = new ClientRepository()->createAuthorizationCodeGrantClient(
         'Scoped',
         ['http://localhost:3000/callback'],
         false,
@@ -610,7 +610,7 @@ it('does not duplicate the mcp scope when it was already granted at creation', f
 });
 
 it('leaves clients unrestricted when the scopes value is null', function (): void {
-    $client = (new ClientRepository())->createAuthorizationCodeGrantClient(
+    $client = new ClientRepository()->createAuthorizationCodeGrantClient(
         'Scoped',
         ['http://localhost:3000/callback'],
         false,
@@ -624,7 +624,7 @@ it('leaves clients unrestricted when the scopes value is null', function (): voi
 it('leaves clients unrestricted when client scopes are not enabled', function (): void {
     httpOAuthTable(['logo_uri', 'client_uri'], false);
 
-    $client = (new ClientRepository())->createAuthorizationCodeGrantClient(
+    $client = new ClientRepository()->createAuthorizationCodeGrantClient(
         'Scoped',
         ['http://localhost:3000/callback'],
         false,
@@ -645,7 +645,7 @@ it('handles oauth discovery with multi-segment paths', function (): void {
     $this->get('/.well-known/oauth-protected-resource/mcp/weather');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect(httpOAuthBody($body))->toMatchArray([
         'resource' => 'https://mcp.example.com/mcp/weather',
@@ -656,7 +656,7 @@ it('handles oauth discovery with multi-segment paths', function (): void {
     $this->get('/.well-known/oauth-authorization-server/mcp/weather');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['issuer'])->toBe('https://mcp.example.com')
         ->and($body['scopes_supported'])->toBe(['mcp:use'])
@@ -669,7 +669,7 @@ it('handles oauth discovery with single segment paths', function (): void {
     $this->get('/.well-known/oauth-protected-resource/mcp');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['resource'])->toBe('https://mcp.example.com/mcp')
         ->and($body['scopes_supported'])->toBe(['mcp:use']);
@@ -677,7 +677,7 @@ it('handles oauth discovery with single segment paths', function (): void {
     $this->get('/.well-known/oauth-authorization-server/mcp');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['issuer'])->toBe('https://mcp.example.com');
 });
@@ -686,7 +686,7 @@ it('handles oauth discovery with no path', function (): void {
     $this->get('/.well-known/oauth-protected-resource');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['resource'])->toBe('https://mcp.example.com/')
         ->and($body['scopes_supported'])->toBe(['mcp:use']);
@@ -694,7 +694,7 @@ it('handles oauth discovery with no path', function (): void {
     $this->get('/.well-known/oauth-authorization-server');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['issuer'])->toBe('https://mcp.example.com');
 });
@@ -705,7 +705,7 @@ it('uses configured authorization_server for authorization_servers field', funct
     $this->get('/.well-known/oauth-protected-resource/mcp');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['authorization_servers'])->toBe(['https://auth.example.com']);
 });
@@ -716,7 +716,7 @@ it('uses configured authorization_server as issuer in authorization server metad
     $this->get('/.well-known/oauth-authorization-server');
 
     $this->assertResponseCode(200);
-    $body = json_decode((string)$this->_response->getBody(), true);
+    $body = json_decode((string)$this->response->getBody(), true);
 
     expect($body['issuer'])->toBe('https://auth.example.com');
 });

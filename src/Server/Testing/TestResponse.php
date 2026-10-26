@@ -102,10 +102,10 @@ class TestResponse
      */
     public function assertSee(array|string $text): static
     {
-        $seeable = (new Collection([
+        $seeable = new Collection([
             ...$this->content(),
             ...$this->errors(),
-        ]))->filter()->unique()->toList();
+        ])->filter()->unique()->toList();
 
         foreach (is_array($text) ? $text : [$text] as $segment) {
             foreach ($seeable as $message) {
@@ -128,10 +128,10 @@ class TestResponse
      */
     public function assertDontSee(array|string $text): static
     {
-        $seeable = (new Collection([
+        $seeable = new Collection([
             ...$this->content(),
             ...$this->errors(),
-        ]))->filter()->unique()->toList();
+        ])->filter()->unique()->toList();
 
         foreach (is_array($text) ? $text : [$text] as $segment) {
             foreach ($seeable as $message) {
@@ -418,12 +418,12 @@ class TestResponse
     protected function content(): array
     {
         return (match (true) {
-            $this->primitive instanceof Tool => (new Collection($this->response->toArray()['result']['content'] ?? []))
+            $this->primitive instanceof Tool => new Collection($this->response->toArray()['result']['content'] ?? [])
                 ->map(fn(array $message): string => $message['text'] ?? $message['data'] ?? ''),
-            $this->primitive instanceof Prompt => (new Collection($this->response->toArray()['result']['messages'] ?? []))
+            $this->primitive instanceof Prompt => new Collection($this->response->toArray()['result']['messages'] ?? [])
                 ->map(fn(array $message): array => $message['content'])
                 ->map(fn(array $content): string => $content['text'] ?? $content['data'] ?? ''),
-            $this->primitive instanceof Resource => (new Collection($this->response->toArray()['result']['contents'] ?? []))
+            $this->primitive instanceof Resource => new Collection($this->response->toArray()['result']['contents'] ?? [])
                 ->map(fn(array $item): string => $item['text'] ?? $item['blob'] ?? ''),
             default => throw new RuntimeException('This primitive type is not supported.'),
         })->filter()->unique()->toList();

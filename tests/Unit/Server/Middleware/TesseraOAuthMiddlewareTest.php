@@ -192,7 +192,7 @@ it('allows a valid token without a resolvable user', function (): void {
 it('applyIdentity prefers mcp.oauth.identity over Cake identity', function (): void {
     $oauthUser = (object)['id' => 'oauth'];
     $cakeUser = (object)['id' => 'cake'];
-    $httpRequest = (new ServerRequest())
+    $httpRequest = new ServerRequest()
         ->withAttribute(TesseraOAuthMiddleware::IDENTITY_ATTRIBUTE, $oauthUser)
         ->withAttribute('identity', $cakeUser);
 

@@ -120,7 +120,7 @@ class OAuthClient
             'resource' => $this->resourceUrl,
         ], static fn(mixed $value): bool => $value !== null && $value !== ''));
 
-        return (new Response(['status' => 302, 'charset' => 'UTF-8']))
+        return new Response(['status' => 302, 'charset' => 'UTF-8'])
             ->withHeader('Location', $authorizeUrl);
     }
 
@@ -346,7 +346,7 @@ class OAuthClient
             throw new OAuthException('No client_id was configured, no https client ID metadata document URL is available, and the authorization server does not support dynamic client registration.');
         }
 
-        return (new DynamicClientRegistration())->register(
+        return new DynamicClientRegistration()->register(
             $metadata->registrationEndpoint,
             $redirectUri,
             $this->resolveScope(),

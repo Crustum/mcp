@@ -6,7 +6,7 @@ namespace Crustum\Mcp\Server;
 /**
  * Registered MCP web server metadata.
  */
-final class WebServerRegistration
+final readonly class WebServerRegistration
 {
     /**
      * @param string $uri Registered route URI
@@ -14,9 +14,9 @@ final class WebServerRegistration
      * @param array<int, string> $middleware Additional route middleware aliases
      */
     public function __construct(
-        public readonly string $uri,
-        public readonly string $serverClass,
-        public readonly array $middleware = [],
+        public string $uri,
+        public string $serverClass,
+        public array $middleware = [],
     ) {
     }
 }

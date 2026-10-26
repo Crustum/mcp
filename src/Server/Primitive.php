@@ -58,7 +58,7 @@ abstract class Primitive implements Arrayable
             return $attribute->value;
         }
 
-        return $this->name !== '' ? $this->name : Str::kebab((new ReflectionClass($this))->getShortName());
+        return $this->name !== '' ? $this->name : Str::kebab(new ReflectionClass($this)->getShortName());
     }
 
     /**
@@ -74,7 +74,7 @@ abstract class Primitive implements Arrayable
             return $attribute->value;
         }
 
-        return $this->title !== '' ? $this->title : Str::headline((new ReflectionClass($this))->getShortName());
+        return $this->title !== '' ? $this->title : Str::headline(new ReflectionClass($this)->getShortName());
     }
 
     /**
@@ -90,7 +90,7 @@ abstract class Primitive implements Arrayable
             return $attribute->value;
         }
 
-        return $this->description !== '' ? $this->description : Str::headline((new ReflectionClass($this))->getShortName());
+        return $this->description !== '' ? $this->description : Str::headline(new ReflectionClass($this)->getShortName());
     }
 
     /**

@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Command;
 
-use Cake\Console\Arguments;
-use Cake\Console\ConsoleIo;
 use Override;
 
 /**
@@ -79,7 +77,7 @@ class McpServerCommand extends McpBakeCommand
      * @inheritDoc
      */
     #[Override]
-    protected function templateVariables(string $name, Arguments $args, ConsoleIo $io): array
+    protected function templateVariables(string $name): array
     {
         $serverDisplayName = trim((string)preg_replace('/(?<!^)([A-Z])/', ' $1', $name));
 

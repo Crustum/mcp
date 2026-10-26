@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Support;
 
-use Cake\Core\Container;
-use Cake\Core\ContainerInterface;
+use Cake\Container\Container;
+use Cake\Container\ContainerInterface;
 
 /**
  * Global container registry for MCP.
@@ -17,14 +17,14 @@ class ContainerRegistry
     /**
      * Shared container instance.
      *
-     * @var \Cake\Core\ContainerInterface|null
+     * @var \Cake\Container\ContainerInterface|null
      */
     protected static ?ContainerInterface $instance = null;
 
     /**
      * Get the global container instance.
      *
-     * @return \Cake\Core\ContainerInterface
+     * @return \Cake\Container\ContainerInterface
      */
     public static function getInstance(): ContainerInterface
     {
@@ -34,7 +34,7 @@ class ContainerRegistry
     /**
      * Set the global container instance.
      *
-     * @param \Cake\Core\ContainerInterface|null $instance Container instance
+     * @param \Cake\Container\ContainerInterface|null $instance Container instance
      * @return void
      */
     public static function setInstance(?ContainerInterface $instance): void

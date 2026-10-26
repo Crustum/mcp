@@ -80,7 +80,7 @@ it('never sends a discovery era version or metadata through the handshake', func
     $transport->responses[] = methodNotFoundResponse();
     $transport->responses[] = initializeResponse(2);
 
-    (new Client($transport))->connect();
+    new Client($transport)->connect();
 
     $initialize = json_decode($transport->sent[1], true);
 
@@ -96,7 +96,7 @@ it('does not fall back when the probe fails for a reason other than a missing me
         'error' => ['code' => -32603, 'message' => 'Internal error'],
     ]);
 
-    expect(fn(): Client => (new Client($transport))->connect())
+    expect(fn(): Client => new Client($transport)->connect())
         ->toThrow(JsonRpcException::class, 'Internal error');
 
     expect($transport->sent)->toHaveCount(1);
@@ -107,7 +107,7 @@ it('rejects a server that will not settle on the requested version', function ()
     $transport->responses[] = discoverResponse(1, ['2025-11-25']);
     $transport->responses[] = initializeResponse(2);
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST);
 
     expect(fn(): Client => $client->connect())
         ->toThrow(ClientException::class, 'The server settled on protocol version [2025-11-25] while [2026-07-28] was requested.');
@@ -123,7 +123,7 @@ it('does not fall back when the error identifies a modern server', function (): 
         'error' => ['code' => -32020, 'message' => 'Header mismatch: The [Mcp-Method] header is required.'],
     ]);
 
-    expect(fn(): Client => (new Client($transport))->connect())
+    expect(fn(): Client => new Client($transport)->connect())
         ->toThrow(JsonRpcException::class, 'Header mismatch');
 
     expect($transport->sent)->toHaveCount(1);
@@ -162,7 +162,7 @@ it('propagates an unsupported version error with no mutually supported version',
         ],
     ]);
 
-    expect(fn(): Client => (new Client($transport))->connect())
+    expect(fn(): Client => new Client($transport)->connect())
         ->toThrow(JsonRpcException::class, 'Unsupported protocol version');
 
     expect($transport->sent)->toHaveCount(1);
@@ -191,7 +191,7 @@ it('surfaces the handshake failure and not the probe when the fallback fails', f
         'error' => ['code' => -32603, 'message' => 'Internal error'],
     ]);
 
-    expect(fn(): Client => (new Client($transport))->connect())
+    expect(fn(): Client => new Client($transport)->connect())
         ->toThrow(JsonRpcException::class, 'Internal error');
 });
 
@@ -206,7 +206,7 @@ it('sends the required protocol metadata on every discovery era request', functi
         'result' => ['tools' => [['name' => 'add', 'description' => 'Adds two numbers']]],
     ]);
 
-    (new Client($transport))->tools();
+    new Client($transport)->tools();
 
     foreach ($transport->sent as $raw) {
         $meta = json_decode($raw, true)['params']['_meta'];
@@ -221,7 +221,7 @@ it('skips the probe when a discovery version is pinned', function (): void {
     $transport = negotiatingTransport();
     $transport->responses[] = discoverResponse();
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::LATEST);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::LATEST);
     $client->connect();
 
     expect($client->protocolVersion())->toBe(ProtocolVersion::LATEST);
@@ -233,7 +233,7 @@ it('offers the pinned legacy version and does not probe discovery', function ():
     $transport = negotiatingTransport();
     $transport->responses[] = initializeResponse(1, ProtocolVersion::V2025_06_18->value);
 
-    $client = (new Client($transport))->withProtocolVersion(ProtocolVersion::V2025_06_18);
+    $client = new Client($transport)->withProtocolVersion(ProtocolVersion::V2025_06_18);
     $client->connect();
 
     expect($client->protocolVersion())->toBe(ProtocolVersion::V2025_06_18);
@@ -374,7 +374,7 @@ it('rejects a malformed discover response', function (): void {
     ]);
 
     expect(function () use ($transport): void {
-        (new Client($transport))->connect();
+        new Client($transport)->connect();
     })->toThrow(ClientException::class, 'Invalid discover response from server.');
 });
 
@@ -383,7 +383,7 @@ it('rejects a server with no protocol version this client can speak', function (
     $transport->responses[] = discoverResponse(1, ['2027-01-01']);
 
     expect(function () use ($transport): void {
-        (new Client($transport))->connect();
+        new Client($transport)->connect();
     })
         ->toThrow(ClientException::class, 'The server supports protocol versions [2027-01-01]. This client supports [2026-07-28, 2025-11-25, 2025-06-18].');
 });
@@ -397,7 +397,7 @@ it('surfaces an invalid params error instead of guessing the server is legacy', 
     ]);
 
     expect(function () use ($transport): void {
-        (new Client($transport))->connect();
+        new Client($transport)->connect();
     })->toThrow(JsonRpcException::class, 'Invalid params: the request [_meta] is malformed.');
 
     expect($transport->sent)->toHaveCount(1);
@@ -428,8 +428,8 @@ it('exposes the server details without knowing which era was negotiated', functi
     $legacy->responses[] = methodNotFoundResponse();
     $legacy->responses[] = initializeResponse(2);
 
-    expect((new Client($modern))->serverInfo()?->name)->toBe('Test Server');
-    expect((new Client($legacy))->serverInfo()?->name)->toBe('Test Server');
+    expect(new Client($modern)->serverInfo()?->name)->toBe('Test Server');
+    expect(new Client($legacy)->serverInfo()?->name)->toBe('Test Server');
 
     $another = negotiatingTransport();
     $another->responses[] = discoverResponse();

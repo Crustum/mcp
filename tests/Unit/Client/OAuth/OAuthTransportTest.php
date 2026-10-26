@@ -61,5 +61,5 @@ it('parses mixed www authenticate challenges with quoted commas and unquoted val
 });
 
 it('exposes the configured endpoint url', function (): void {
-    expect((new HttpTransport('https://mcp.test/mcp'))->url())->toBe('https://mcp.test/mcp');
+    expect(new HttpTransport('https://mcp.test/mcp')->url())->toBe('https://mcp.test/mcp');
 });

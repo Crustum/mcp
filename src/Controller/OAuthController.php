@@ -5,7 +5,6 @@ namespace Crustum\Mcp\Controller;
 
 use Cake\Core\Configure;
 use Cake\Http\Response;
-use Cake\Http\Session;
 use Crustum\Mcp\Client\ClientManager;
 use Crustum\Mcp\Client\OAuth\OAuthRouteRegistrar;
 use Crustum\Mcp\Exception\ClientException;
@@ -24,11 +23,7 @@ class OAuthController extends AppController
      */
     public function connect(string $clientName): ?Response
     {
-        $session = $this->request->getAttribute('session');
-
-        if (!$session instanceof Session) {
-            $session = $this->request->getSession();
-        }
+        $session = $this->request->getSession();
 
         $resourceMetadata = $this->request->getQuery('resource_metadata');
         $scope = $this->request->getQuery('scope');
@@ -49,11 +44,7 @@ class OAuthController extends AppController
      */
     public function callback(string $clientName): mixed
     {
-        $session = $this->request->getAttribute('session');
-
-        if (!$session instanceof Session) {
-            $session = $this->request->getSession();
-        }
+        $session = $this->request->getSession();
 
         $oauth = $this->webClient($clientName)->oAuthClient(session: $session);
         $token = $oauth->exchangeCallback($this->request->getQueryParams(), $session);

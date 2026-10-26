@@ -57,7 +57,7 @@ abstract class Resource extends Primitive
             return $attribute->value;
         }
 
-        return $this->uri !== '' ? $this->uri : $this->defaultUriScheme . '://resources/' . Str::kebab((new ReflectionClass($this))->getShortName());
+        return $this->uri !== '' ? $this->uri : $this->defaultUriScheme . '://resources/' . Str::kebab(new ReflectionClass($this)->getShortName());
     }
 
     /**

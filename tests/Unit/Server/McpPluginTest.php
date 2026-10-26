@@ -33,7 +33,7 @@ afterEach(function (): void {
 });
 
 it('registers shared container services', function (): void {
-    $container = new Container();
+    $container = new \Cake\Container\Container();
     $plugin = new McpPlugin();
 
     $plugin->services($container);
@@ -102,7 +102,7 @@ it('sets the container registry from the application container', function (): vo
 });
 
 it('registers the authorization framing middleware globally', function (): void {
-    $queue = (new McpPlugin())->middleware(new MiddlewareQueue());
+    $queue = new McpPlugin()->middleware(new MiddlewareQueue());
 
     $found = false;
 

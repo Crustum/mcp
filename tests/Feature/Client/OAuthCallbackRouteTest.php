@@ -111,7 +111,7 @@ it('exchanges the code and invokes the handler with the client name', function (
         $capturedProvider = $provider;
         $capturedToken = $token;
 
-        return (new Response())->withStatus(302)->withLocation('/dashboard');
+        return new Response()->withStatus(302)->withLocation('/dashboard');
     });
 
     $response = invokeOAuthCallback('github', fakeOAuthSession(), [
@@ -149,7 +149,7 @@ it('registers a connect route that redirects to the authorization server', funct
     Mcp::oAuthRoutesFor(
         mcpRegistrarRouteBuilder([]),
         'github',
-        fn(string $provider, TokenSet $token): Response => (new Response())->withStatus(302)->withLocation('/dashboard'),
+        fn(string $provider, TokenSet $token): Response => new Response()->withStatus(302)->withLocation('/dashboard'),
     );
 
     $response = invokeOAuthConnect('github');
@@ -374,7 +374,7 @@ it('completes the confidential flow with advertised cross origin metadata', func
     Mcp::oAuthRoutesFor(
         mcpRegistrarRouteBuilder([]),
         'github',
-        fn(string $provider, TokenSet $token): Response => (new Response())->withStatus(302)->withLocation('/connected/' . $token->accessToken),
+        fn(string $provider, TokenSet $token): Response => new Response()->withStatus(302)->withLocation('/connected/' . $token->accessToken),
     );
 
     $response = invokeOAuthConnect('github', [], ['resource_metadata' => 'https://metadata.test/resource']);

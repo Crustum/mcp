@@ -134,7 +134,7 @@ class OAuthRegisterController extends AppController
             $entity = $table->get($client->id);
 
             foreach (array_keys($metadata) as $field) {
-                $entity->setAccess($field, true);
+                $entity->setPatchable($field, true);
             }
 
             $entity = $table->patchEntity($entity, $metadata);
@@ -398,10 +398,7 @@ class OAuthRegisterController extends AppController
         $container = ContainerRegistry::getInstance();
 
         if ($container->has(ClientRepository::class)) {
-            $repository = $container->get(ClientRepository::class);
-            if ($repository instanceof ClientRepository) {
-                return $repository;
-            }
+            return $container->get(ClientRepository::class);
         }
 
         return new ClientRepository();

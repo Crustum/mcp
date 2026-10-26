@@ -306,9 +306,9 @@ it('creates a resource link from a Resource class-string', function (): void {
     $payload = $response->content()->toArray();
 
     expect($payload['type'])->toBe('resource_link')
-        ->and($payload['uri'])->toBe((new DailyPlanResource())->uri())
-        ->and($payload['name'])->toBe((new DailyPlanResource())->name())
-        ->and($payload['mimeType'])->toBe((new DailyPlanResource())->mimeType());
+        ->and($payload['uri'])->toBe(new DailyPlanResource()->uri())
+        ->and($payload['name'])->toBe(new DailyPlanResource()->name())
+        ->and($payload['mimeType'])->toBe(new DailyPlanResource()->mimeType());
 });
 
 it('creates a resource link from a Resource instance', function (): void {

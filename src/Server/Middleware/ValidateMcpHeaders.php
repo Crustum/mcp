@@ -49,7 +49,7 @@ class ValidateMcpHeaders implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $response = (new Response())
+        $response = new Response()
             ->withStatus(400)
             ->withHeader('Content-Type', 'application/json');
 
@@ -83,7 +83,7 @@ class ValidateMcpHeaders implements MiddlewareInterface
             return null;
         }
 
-        $response = (new Response())
+        $response = new Response()
             ->withStatus(400)
             ->withHeader('Content-Type', 'application/json');
 

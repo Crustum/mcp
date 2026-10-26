@@ -62,7 +62,7 @@ class HttpTransport implements Transport
         if ($this->stream instanceof Closure) {
             $stream = $this->stream;
 
-            $response = (new Response())
+            $response = new Response()
                 ->withStatus(200)
                 ->withType('text/event-stream')
                 ->withHeader('X-Accel-Buffering', 'no')

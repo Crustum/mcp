@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server;
 
 use Cake\Core\Configure;
+use Cake\Http\ServerRequest;
 use Cake\Routing\Router;
 
 /**
@@ -54,7 +55,11 @@ final class ServerUrl
             }
         }
 
-        $routerBase = Router::fullBaseUrl();
+        $routerBase = '';
+        $request = Router::getRequest();
+        if ($request instanceof ServerRequest && $request->getUri()->getHost() !== '') {
+            $routerBase = Router::fullBaseUrl();
+        }
 
         if ($routerBase !== '') {
             return self::normalizeBaseUrl($routerBase);

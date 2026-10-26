@@ -66,6 +66,7 @@ ensureDirectoryExists(LOGS);
 Configure::write('App', [
     'namespace' => 'TestApp',
     'encoding' => 'UTF-8',
+    'fullBaseUrl' => 'http://localhost',
 ]);
 Configure::write('App.paths.templates', [APP . 'templates' . DS]);
 Configure::write('debug', true);

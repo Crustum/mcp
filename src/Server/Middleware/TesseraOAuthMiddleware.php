@@ -17,6 +17,7 @@ use Crustum\Tessera\Exception\MissingScopeException;
 use Crustum\Tessera\Support\UserId;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
+use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -133,12 +134,11 @@ class TesseraOAuthMiddleware implements MiddlewareInterface
             return $this->server;
         }
 
-        $resolved = ContainerRegistry::getInstance()->get(ResourceServer::class);
-        if (!$resolved instanceof ResourceServer) {
+        try {
+            return ContainerRegistry::getInstance()->get(ResourceServer::class);
+        } catch (NotFoundExceptionInterface) {
             throw new RuntimeException('Tessera ResourceServer is not bound');
         }
-
-        return $resolved;
     }
 
     /**
@@ -187,7 +187,7 @@ class TesseraOAuthMiddleware implements MiddlewareInterface
      */
     protected function jsonError(int $status, string $message): Response
     {
-        return (new Response())
+        return new Response()
             ->withStatus($status)
             ->withType('application/json')
             ->withStringBody(json_encode([

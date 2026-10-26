@@ -8,22 +8,22 @@ use Stringable;
 /**
  * MCP protocol header value with base64 sentinel encoding.
  */
-final class HeaderValue implements Stringable
+final readonly class HeaderValue implements Stringable
 {
     /**
      * Base64 sentinel prefix.
      */
-    protected const BASE64_PREFIX = '=?base64?';
+    protected const string BASE64_PREFIX = '=?base64?';
 
     /**
      * Base64 sentinel suffix.
      */
-    protected const BASE64_SUFFIX = '?=';
+    protected const string BASE64_SUFFIX = '?=';
 
     /**
      * @param string $value Decoded header value
      */
-    public function __construct(public readonly string $value)
+    public function __construct(public string $value)
     {
     }
 

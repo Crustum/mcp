@@ -48,7 +48,7 @@ afterEach(function (): void {
 
 function transportRecipe(Client $client): array
 {
-    return (new ReflectionProperty(Client::class, 'transport'))->getValue($client)->recipe();
+    return new ReflectionProperty(Client::class, 'transport')->getValue($client)->recipe();
 }
 
 function listToolsResponse(int $id, array $names): string
@@ -421,8 +421,8 @@ it('applies oauth, cache and protocol version from config', function (): void {
     ]]);
 
     $client = Mcp::client('sentry');
-    $protocol = (new ReflectionProperty(Client::class, 'protocol'))->getValue($client);
-    $oauth = (new ReflectionProperty(WebClient::class, 'oAuthConfig'))->getValue($client);
+    $protocol = new ReflectionProperty(Client::class, 'protocol')->getValue($client);
+    $oauth = new ReflectionProperty(WebClient::class, 'oAuthConfig')->getValue($client);
 
     expect($oauth->clientId)->toBe('sentry-id')
         ->and($oauth->clientSecret)->toBe('sentry-secret')
@@ -436,7 +436,7 @@ it('applies oauth, cache and protocol version from config', function (): void {
 it('enables the default cache when cache is true', function (): void {
     config(['Mcp.clients.local' => ['command' => 'php', 'cache' => true]]);
 
-    $protocol = (new ReflectionProperty(Client::class, 'protocol'))->getValue(Mcp::client('local'));
+    $protocol = new ReflectionProperty(Client::class, 'protocol')->getValue(Mcp::client('local'));
 
     expect($protocol->cache()?->store)->toBeNull()
         ->and($protocol->cache()?->for)->toBeNull();
@@ -462,13 +462,13 @@ it('filters tools with only and except patterns', function (): void {
     $transport->responses[] = initializeResponse();
     $transport->responses[] = listToolsResponse(2, ['get_issue', 'list_issues', 'delete_issue', 'create_branch']);
 
-    $client = (new Client($transport))->onlyTools(['*_issue', 'list_*'])->exceptTools(['delete_*']);
+    $client = new Client($transport)->onlyTools(['*_issue', 'list_*'])->exceptTools(['delete_*']);
 
     expect(collectionKeys($client->tools()))->toBe(['get_issue', 'list_issues']);
 });
 
 it('refuses to call an excluded tool', function (): void {
-    $client = (new Client(new FakeTransport()))->exceptTools(['delete_*']);
+    $client = new Client(new FakeTransport())->exceptTools(['delete_*']);
 
     expect(fn (): ToolResult => $client->callTool('delete_issue'))
         ->toThrow(ClientException::class, 'MCP tool [delete_issue] is not allowed on this client.');

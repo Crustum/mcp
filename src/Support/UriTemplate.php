@@ -14,27 +14,27 @@ class UriTemplate implements Stringable
     /**
      * Maximum template length in characters.
      */
-    private const MAX_TEMPLATE_LENGTH = 1_000_000;
+    private const int MAX_TEMPLATE_LENGTH = 1_000_000;
 
     /**
      * Maximum variable name length in characters.
      */
-    private const MAX_VARIABLE_LENGTH = 1_000_000;
+    private const int MAX_VARIABLE_LENGTH = 1_000_000;
 
     /**
      * Maximum number of template expressions.
      */
-    private const MAX_TEMPLATE_EXPRESSIONS = 10_000;
+    private const int MAX_TEMPLATE_EXPRESSIONS = 10_000;
 
     /**
      * Maximum compiled regex length in characters.
      */
-    private const MAX_REGEX_LENGTH = 1_000_000;
+    private const int MAX_REGEX_LENGTH = 1_000_000;
 
     /**
      * URI template validation pattern.
      */
-    private const URI_TEMPLATE_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.*{[^{}]+}.*/';
+    private const string URI_TEMPLATE_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.*{[^{}]+}.*/';
 
     /**
      * Extracted variable names from the template.

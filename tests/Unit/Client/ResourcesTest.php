@@ -24,7 +24,7 @@ it('returns a collection of resources keyed by uri', function (): void {
         ],
     ]);
 
-    $resources = (new Client($transport))->resources();
+    $resources = new Client($transport)->resources();
 
     expect($resources)
         ->toBeInstanceOf(Collection::class)
@@ -69,7 +69,7 @@ it('auto-paginates resources/list until nextCursor is absent', function (): void
         ],
     ]);
 
-    $resources = (new Client($transport))->resources();
+    $resources = new Client($transport)->resources();
 
     expect(collectionKeys($resources))->toBe(['file://first', 'file://second', 'file://third'])
         ->and(json_decode($transport->sent[2], true))->not->toHaveKey('params')
@@ -92,7 +92,7 @@ it('stops paginating once the resource limit is reached without fetching the nex
         ],
     ]);
 
-    $resources = (new Client($transport))->resources(2);
+    $resources = new Client($transport)->resources(2);
 
     expect(collectionKeys($resources))->toBe(['file://a', 'file://b'])
         ->and($transport->sent)->toHaveCount(3)
@@ -115,7 +115,7 @@ it('returns no resources without connecting when limit is zero', function (): vo
 it('throws when the resource limit is negative', function (): void {
     $transport = new FakeTransport();
 
-    expect(fn(): Collection => (new Client($transport))->resources(-1))
+    expect(fn(): Collection => new Client($transport)->resources(-1))
         ->toThrow(ClientException::class, 'Resource list limit must be greater than or equal to zero.')
         ->and($transport->sent)->toBeEmpty();
 });
@@ -131,7 +131,7 @@ it('throws when resources/list does not return a resources array', function (): 
         ],
     ]);
 
-    expect(fn(): Collection => (new Client($transport))->resources())
+    expect(fn(): Collection => new Client($transport)->resources())
         ->toThrow(ClientException::class, 'Invalid resources/list response from server.');
 });
 
@@ -146,7 +146,7 @@ it('throws when a resource payload is not an object', function (): void {
         ],
     ]);
 
-    expect(fn(): Collection => (new Client($transport))->resources())
+    expect(fn(): Collection => new Client($transport)->resources())
         ->toThrow(ClientException::class, 'Invalid resource payload from server.');
 });
 
@@ -161,7 +161,7 @@ it('throws when a resource payload is missing a uri or name', function (array $p
         ],
     ]);
 
-    expect(fn(): Collection => (new Client($transport))->resources())
+    expect(fn(): Collection => new Client($transport)->resources())
         ->toThrow(ClientException::class, 'Invalid resource payload from server.');
 })->with([
     'missing uri' => [['name' => 'readme']],
@@ -183,7 +183,7 @@ it('throws when a resource payload has a field of the wrong type', function (arr
         ],
     ]);
 
-    expect(fn(): Collection => (new Client($transport))->resources())
+    expect(fn(): Collection => new Client($transport)->resources())
         ->toThrow(ClientException::class, 'Invalid resource payload from server.');
 })->with([
     'non-string title' => [['title' => 1]],
@@ -211,7 +211,7 @@ it('preserves title, annotations and _meta on a resource', function (): void {
         ],
     ]);
 
-    $resource = collectionGet((new Client($transport))->resources(), 'file://readme');
+    $resource = collectionGet(new Client($transport)->resources(), 'file://readme');
 
     expect($resource)
         ->title->toBe('Readme')
@@ -239,7 +239,7 @@ it('throws when a server repeats a resources/list cursor', function (): void {
         ],
     ]);
 
-    expect(fn(): Collection => (new Client($transport))->resources())
+    expect(fn(): Collection => new Client($transport)->resources())
         ->toThrow(ClientException::class, 'Repeated resources/list cursor [cursor-page-2] received from server.')
         ->and($transport->sent)->toHaveCount(4);
 });
@@ -256,7 +256,7 @@ it('throws when resources/list returns a non-string cursor', function (mixed $ne
         ],
     ]);
 
-    expect(fn(): Collection => (new Client($transport))->resources())
+    expect(fn(): Collection => new Client($transport)->resources())
         ->toThrow(ClientException::class, 'Invalid resources/list cursor from server.');
 })->with([
     'integer' => [123],
@@ -268,7 +268,7 @@ it('returns the given default when authorization is required for resources', fun
         'https://mcp.test/mcp' => Http::response('', 401),
     ]);
 
-    $resources = (new Client(new HttpTransport('https://mcp.test/mcp')))->resources(default: []);
+    $resources = new Client(new HttpTransport('https://mcp.test/mcp'))->resources(default: []);
 
     expect($resources)->toBeInstanceOf(Collection::class)->toBeEmpty();
 });
@@ -278,7 +278,7 @@ it('rethrows the authorization exception for resources when no default is given'
         'https://mcp.test/mcp' => Http::response('', 401),
     ]);
 
-    expect(fn(): Collection => (new Client(new HttpTransport('https://mcp.test/mcp')))->resources())
+    expect(fn(): Collection => new Client(new HttpTransport('https://mcp.test/mcp'))->resources())
         ->toThrow(AuthorizationRequiredException::class);
 });
 
@@ -296,7 +296,7 @@ it('sends resources/read by uri and returns text content', function (): void {
         ],
     ]);
 
-    $result = (new Client($transport))->readResource('file://readme');
+    $result = new Client($transport)->readResource('file://readme');
 
     expect($result)
         ->toBeInstanceOf(ResourceReadResult::class)
@@ -324,7 +324,7 @@ it('decodes blob content from a resources/read result', function (): void {
         ],
     ]);
 
-    $result = (new Client($transport))->readResource('file://logo');
+    $result = new Client($transport)->readResource('file://logo');
 
     expect($result->content())->toBe('binary-data');
 });
@@ -342,7 +342,7 @@ it('returns the mime type from the first content item', function (): void {
         ],
     ]);
 
-    $result = (new Client($transport))->readResource('file://logo');
+    $result = new Client($transport)->readResource('file://logo');
 
     expect($result->mimeType())->toBe('image/png');
 });
@@ -356,7 +356,7 @@ it('returns null mime type when contents are empty', function (): void {
         'result' => ['contents' => []],
     ]);
 
-    $result = (new Client($transport))->readResource('file://empty');
+    $result = new Client($transport)->readResource('file://empty');
 
     expect($result->mimeType())->toBeNull();
 });
@@ -373,7 +373,7 @@ it('preserves _meta from the resources/read response', function (): void {
         ],
     ]);
 
-    $result = (new Client($transport))->readResource('file://readme');
+    $result = new Client($transport)->readResource('file://readme');
 
     expect($result)
         ->meta->toBe(['source' => 'cached', 'duration_ms' => 12]);
@@ -390,7 +390,7 @@ it('throws when a resources/read result has a non-array contents field', functio
         ],
     ]);
 
-    expect(fn(): ResourceReadResult => (new Client($transport))->readResource('file://readme'))
+    expect(fn(): ResourceReadResult => new Client($transport)->readResource('file://readme'))
         ->toThrow(ClientException::class, 'Invalid resources/read result from server.');
 });
 
@@ -403,7 +403,7 @@ it('returns an empty result when resources/read omits contents', function (): vo
         'result' => [],
     ]);
 
-    $result = (new Client($transport))->readResource('file://empty');
+    $result = new Client($transport)->readResource('file://empty');
 
     expect($result)
         ->toBeInstanceOf(ResourceReadResult::class)
@@ -427,7 +427,7 @@ it('filters out non-array content items from a resources/read result', function 
         ],
     ]);
 
-    $result = (new Client($transport))->readResource('file://readme');
+    $result = new Client($transport)->readResource('file://readme');
 
     expect($result->contents)->toHaveCount(1)
         ->and($result->content())->toBe('Hi');
@@ -445,7 +445,7 @@ it('coerces a non-array _meta from resources/read to null', function (): void {
         ],
     ]);
 
-    $result = (new Client($transport))->readResource('file://readme');
+    $result = new Client($transport)->readResource('file://readme');
 
     expect($result->meta)->toBeNull();
 });

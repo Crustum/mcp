@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Server;
 
-use Cake\Core\ContainerInterface;
+use Cake\Container\ContainerInterface;
 use Crustum\Mcp\Request;
 use Crustum\Mcp\Support\McpContainerBindings;
 use InvalidArgumentException;
@@ -19,7 +19,7 @@ use ReflectionNamedType;
 class ContainerInvoker
 {
     /**
-     * @param \Cake\Core\ContainerInterface $container Container instance
+     * @param \Cake\Container\ContainerInterface $container Container instance
      */
     public function __construct(
         protected ContainerInterface $container,

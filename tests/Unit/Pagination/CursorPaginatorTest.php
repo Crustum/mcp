@@ -84,7 +84,7 @@ it('falls back to the first page for cursors that do not decode to an offset', f
         ['name' => 'Item 3'],
     ]);
 
-    $result = (new CursorPaginator($items, 2, $cursor))->paginate();
+    $result = new CursorPaginator($items, 2, $cursor)->paginate();
 
     expect($result['items'])->toEqual([
         ['name' => 'Item 1'],
@@ -105,7 +105,7 @@ it('falls back to the first page for a negative offset', function (): void {
 
     $cursor = base64_encode((string) json_encode(['offset' => -1]));
 
-    $result = (new CursorPaginator($items, 2, $cursor))->paginate();
+    $result = new CursorPaginator($items, 2, $cursor)->paginate();
 
     expect($result['items'])->toEqual([
         ['name' => 'Item 1'],

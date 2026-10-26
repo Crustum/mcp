@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Command;
 
 use Bake\Utility\TemplateRenderer;
-use Cake\Console\Arguments;
-use Cake\Console\ConsoleIo;
 use Crustum\Mcp\Support\Str;
 use Override;
 
@@ -22,25 +20,22 @@ class McpAppResourceCommand extends McpBakeCommand
     /**
      * Execute the bake command.
      *
-     * @param \Cake\Console\Arguments $args The command arguments
-     * @param \Cake\Console\ConsoleIo $io The console io
      * @return int|null The exit code or null for success
      */
     #[Override]
-    public function execute(Arguments $args, ConsoleIo $io): ?int
+    public function execute(): ?int
     {
-        $result = parent::execute($args, $io);
-
+        $result = parent::execute();
         if ($result !== static::CODE_SUCCESS) {
             return $result;
         }
 
-        $name = $args->getArgumentAt(0);
+        $name = $this->args->getArgumentAt(0);
         if (!is_string($name) || $name === '') {
             return static::CODE_ERROR;
         }
 
-        $this->bakeView($this->_getName($name), $args, $io);
+        $this->bakeView($this->getNameWithoutPrefix($name));
 
         return static::CODE_SUCCESS;
     }
@@ -107,7 +102,7 @@ class McpAppResourceCommand extends McpBakeCommand
      * @inheritDoc
      */
     #[Override]
-    protected function templateVariables(string $name, Arguments $args, ConsoleIo $io): array
+    protected function templateVariables(string $name): array
     {
         $viewName = $this->getViewName($name);
         $viewTemplate = 'Mcp/' . $viewName;
@@ -125,23 +120,21 @@ class McpAppResourceCommand extends McpBakeCommand
      * Write the linked MCP app view template.
      *
      * @param string $name Class name
-     * @param \Cake\Console\Arguments $args CLI arguments
-     * @param \Cake\Console\ConsoleIo $io Console io
      * @return void
      */
-    protected function bakeView(string $name, Arguments $args, ConsoleIo $io): void
+    protected function bakeView(string $name): void
     {
-        $viewPath = $this->getViewPath($name, $args);
-        $forceOption = $args->getOption('force');
+        $viewPath = $this->getViewPath($name);
+        $forceOption = $this->args->getOption('force');
         $force = is_bool($forceOption) && $forceOption;
 
         if (file_exists($viewPath) && !$force) {
-            $io->warning("View [{$viewPath}] already exists.");
+            $this->io->warning("View [{$viewPath}] already exists.");
 
             return;
         }
 
-        $themeOption = $args->getOption('theme');
+        $themeOption = $this->args->getOption('theme');
         $theme = is_string($themeOption) ? $themeOption : null;
         $renderer = new TemplateRenderer($theme);
         $renderer->set('plugin', $this->plugin);
@@ -150,8 +143,8 @@ class McpAppResourceCommand extends McpBakeCommand
         ]);
 
         $content = $renderer->generate('Crustum/Mcp.Mcp/app_resource_view');
-        $io->createFile($viewPath, $content, $force);
-        $io->out("View [{$viewPath}] created successfully.");
+        $this->io->createFile($viewPath, $content, $force);
+        $this->io->out("View [{$viewPath}] created successfully.");
     }
 
     /**
@@ -161,14 +154,13 @@ class McpAppResourceCommand extends McpBakeCommand
      * `templates/` directory when `--plugin` / `Plugin.Name` is set.
      *
      * @param string $name Class name
-     * @param \Cake\Console\Arguments $args CLI arguments
      * @return string
      */
-    protected function getViewPath(string $name, Arguments $args): string
+    protected function getViewPath(string $name): string
     {
         $viewName = str_replace('/', DIRECTORY_SEPARATOR, $this->getViewName($name));
 
-        return $this->getTemplatePath($args, 'Mcp') . $viewName . '.php';
+        return $this->getTemplatePath('Mcp') . $viewName . '.php';
     }
 
     /**

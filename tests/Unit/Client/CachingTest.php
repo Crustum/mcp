@@ -74,7 +74,7 @@ function cacheableTransport(int $ttlMs = 300000, string $scope = 'private'): Fak
 
 it('serves a fresh result without touching the transport again', function (): void {
     $transport = cacheableTransport();
-    $client = (new Client($transport))->withCache();
+    $client = new Client($transport)->withCache();
 
     expect($client->tools()->keys()->toArray())->toBe(['add']);
 
@@ -86,7 +86,7 @@ it('serves a fresh result without touching the transport again', function (): vo
 
 it('never caches a result the server marked immediately stale', function (): void {
     $transport = cacheableTransport(ttlMs: 0);
-    $client = (new Client($transport))->withCache();
+    $client = new Client($transport)->withCache();
 
     $client->tools();
 
@@ -129,7 +129,7 @@ it('never caches an interim result', function (): void {
     $transport->responses[] = resourceResponse('alpha', resultType: 'input_required');
     $transport->responses[] = resourceResponse('bravo');
 
-    $client = (new Client($transport))->withCache();
+    $client = new Client($transport)->withCache();
 
     expect($client->readResource('file://a')->content())->toBe('alpha')
         ->and($client->readResource('file://a')->content())->toBe('bravo');
@@ -144,7 +144,7 @@ it('never caches a page of a paginated list', function (): void {
     $transport->responses[] = toolsPage('add', nextCursor: 'page-2');
     $transport->responses[] = toolsPage('subtract');
 
-    $client = (new Client($transport))->withCache();
+    $client = new Client($transport)->withCache();
 
     expect($client->tools()->keys()->toArray())->toBe(['add', 'subtract']);
 
@@ -156,7 +156,7 @@ it('never caches a page of a paginated list', function (): void {
 
 it('stops caching once the cache is turned back off', function (): void {
     $transport = cacheableTransport();
-    $client = (new Client($transport))->withCache()->withoutCache();
+    $client = new Client($transport)->withCache()->withoutCache();
 
     $client->tools();
 
@@ -174,7 +174,7 @@ it('stops caching once the cache is turned back off', function (): void {
 });
 
 it('includes cache in serialized output', function (): void {
-    $client = (new Client(new FakeTransport()))->withCache(store: 'array', for: 'tenant-a');
+    $client = new Client(new FakeTransport())->withCache(store: 'array', for: 'tenant-a');
 
     $data = $client->__serialize();
 

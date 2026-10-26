@@ -79,8 +79,8 @@ it('does not resolve literal dotted keys', function (): void {
 
     expect($request->get('limit.items'))->toBe(10)
         ->and($request->get('limit.items', 'fallback'))->toBe(10)
-        ->and((new Request(['limit.items' => 5]))->get('limit.items'))->toBeNull()
-        ->and((new Request(['limit.items' => 5]))->all())->toBe(['limit.items' => 5]);
+        ->and(new Request(['limit.items' => 5])->get('limit.items'))->toBeNull()
+        ->and(new Request(['limit.items' => 5])->all())->toBe(['limit.items' => 5]);
 });
 
 it('expands hash wildcard matchers', function (): void {

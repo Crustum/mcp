@@ -3,30 +3,31 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Support;
 
-use Cake\Core\Container;
-use Cake\Core\ContainerInterface;
+use Cake\Container\Container;
+use Cake\Container\ContainerInterface;
+use Cake\Container\Definition\Definition;
+use Cake\Container\Definition\DefinitionAggregate;
 use Crustum\Mcp\Request;
-use League\Container\Definition\DefinitionAggregate;
 use ReflectionProperty;
 
 /**
- * Per-RPC scoped bindings for the Cake/League container.
+ * Per-RPC scoped bindings for the Cake container.
  *
- * League Container requires the third argument on add() to overwrite an
- * existing definition when rebinding per-request values.
+ * Cake's DefinitionAggregate overwrites existing definitions on add(), so
+ * rebinding per-request values needs no overwrite flag.
  */
 final class McpContainerBindings
 {
-    public const REQUEST = 'mcp.request';
+    public const string REQUEST = 'mcp.request';
 
-    public const SDK = 'mcp.sdk';
+    public const string SDK = 'mcp.sdk';
 
-    public const LIBRARY_SCRIPTS = 'mcp.library_scripts';
+    public const string LIBRARY_SCRIPTS = 'mcp.library_scripts';
 
     /**
      * Bind the current MCP request for handler injection.
      *
-     * @param \Cake\Core\ContainerInterface $container Container instance
+     * @param \Cake\Container\ContainerInterface $container Container instance
      * @param \Crustum\Mcp\Request $request MCP request
      * @return void
      */
@@ -39,20 +40,20 @@ final class McpContainerBindings
     /**
      * Bind a scoped container value, replacing any existing definition.
      *
-     * @param \Cake\Core\ContainerInterface $container Container instance
+     * @param \Cake\Container\ContainerInterface $container Container instance
      * @param string $id Binding identifier
      * @param mixed $instance Bound instance
      * @return void
      */
     public static function bind(ContainerInterface $container, string $id, mixed $instance): void
     {
-        $container->add($id, $instance, true);
+        $container->addShared($id, $instance);
     }
 
     /**
      * Remove MCP request bindings after an RPC handler completes.
      *
-     * @param \Cake\Core\ContainerInterface $container Container instance
+     * @param \Cake\Container\ContainerInterface $container Container instance
      * @return void
      */
     public static function releaseRequest(ContainerInterface $container): void
@@ -63,7 +64,7 @@ final class McpContainerBindings
     /**
      * Remove scoped bindings after an RPC handler completes.
      *
-     * @param \Cake\Core\ContainerInterface $container Container instance
+     * @param \Cake\Container\ContainerInterface $container Container instance
      * @param string ...$ids Binding identifiers
      * @return void
      */
@@ -79,18 +80,22 @@ final class McpContainerBindings
             return;
         }
 
+        $property = new ReflectionProperty(DefinitionAggregate::class, 'definitions');
+        /** @var array<string, mixed> $map */
+        $map = $property->getValue($definitions);
+
         foreach ($ids as $id) {
-            if ($definitions->has($id)) {
-                $definitions->remove($id);
-            }
+            unset($map[Definition::normaliseAlias($id)]);
         }
+
+        $property->setValue($definitions, $map);
     }
 
     /**
-     * Get the League definition aggregate from a Cake container.
+     * Get the definition aggregate from a Cake container.
      *
-     * @param \Cake\Core\Container $container Container instance
-     * @return \League\Container\Definition\DefinitionAggregate|null
+     * @param \Cake\Container\Container $container Container instance
+     * @return \Cake\Container\Definition\DefinitionAggregate|null
      */
     protected static function definitions(Container $container): ?DefinitionAggregate
     {

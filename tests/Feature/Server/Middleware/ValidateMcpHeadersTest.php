@@ -28,14 +28,14 @@ function validateHeadersPost(array $message, array $headers = []): Response
         $environment['HTTP_' . strtoupper(str_replace('-', '_', $name))] = $value;
     }
 
-    $serverRequest = (new ServerRequest([
+    $serverRequest = new ServerRequest([
         'url' => '/mcp/test',
         'environment' => $environment,
         'input' => json_encode($message, JSON_THROW_ON_ERROR),
         'params' => [
             'serverUri' => 'mcp/test',
         ],
-    ]))->withParsedBody($message);
+    ])->withParsedBody($message);
 
     $handler = new class ($serverRequest) implements RequestHandlerInterface
     {

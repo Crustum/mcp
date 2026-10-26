@@ -8,7 +8,7 @@ use Crustum\Mcp\Client\Transport\TransportFactory;
 use Crustum\Mcp\Exception\ClientException;
 
 it('rebuilds a stdio transport from its recipe', function (): void {
-    $recipe = (new StdioTransport('node', ['server.js'], ['API_KEY' => 'secret']))->recipe();
+    $recipe = new StdioTransport('node', ['server.js'], ['API_KEY' => 'secret'])->recipe();
     $recipe['timeoutSeconds'] = 12.0;
 
     $transport = TransportFactory::fromRecipe($recipe);

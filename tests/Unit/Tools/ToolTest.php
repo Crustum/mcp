@@ -135,11 +135,11 @@ it('can have custom meta', function (): void {
 });
 
 it('omits icons key when no icons are declared', function (): void {
-    expect((new TestTool())->toArray())->not->toHaveKey('icons');
+    expect(new TestTool()->toArray())->not->toHaveKey('icons');
 });
 
 it('includes icons in toArray when declared', function (): void {
-    $array = (new ToolWithIcons())->toArray();
+    $array = new ToolWithIcons()->toArray();
 
     expect($array['icons'])->toBe([
         ['src' => 'https://example.com/tool.png', 'mimeType' => 'image/png'],
@@ -147,7 +147,7 @@ it('includes icons in toArray when declared', function (): void {
 });
 
 it('includes icons declared via the Icon attribute', function (): void {
-    $array = (new ToolWithIconAttribute())->toArray();
+    $array = new ToolWithIconAttribute()->toArray();
 
     expect($array['icons'])->toBe([
         ['src' => 'https://example.com/attribute.png', 'mimeType' => 'image/png'],

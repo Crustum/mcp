@@ -36,14 +36,14 @@ function mcpStartHttpPost(array $message, array $headers = [], string $serverUri
         $environment['HTTP_' . strtoupper(str_replace('-', '_', $name))] = $value;
     }
 
-    $serverRequest = (new ServerRequest([
+    $serverRequest = new ServerRequest([
         'url' => '/' . $serverUri,
         'environment' => $environment,
         'input' => json_encode($message, JSON_THROW_ON_ERROR),
         'params' => [
             'serverUri' => $serverUri,
         ],
-    ]))->withParsedBody($message);
+    ])->withParsedBody($message);
 
     $handler = new class ($serverRequest) implements RequestHandlerInterface
     {

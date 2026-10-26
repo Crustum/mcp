@@ -20,7 +20,7 @@ it('dispatches McpRequestBuildingEvent with server request context', function ()
 
     EventManager::instance()->on(McpRequestBuildingEvent::NAME, $listener);
 
-    $httpRequest = (new ServerRequest())->withAttribute('identity', $principal);
+    $httpRequest = new ServerRequest()->withAttribute('identity', $principal);
     $jsonRpcRequest = new JsonRpcRequest('1', 'tools/call', [
         'name' => 'example',
         'arguments' => ['city' => 'Paris'],

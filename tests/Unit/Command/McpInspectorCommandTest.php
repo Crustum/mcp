@@ -7,6 +7,7 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\Exception\ConsoleException;
 use Cake\Console\TestSuite\StubConsoleOutput;
 use Cake\Core\Configure;
+use Cake\Routing\Router;
 use Crustum\Mcp\Command\McpInspectorCommand;
 use Crustum\Mcp\Server\Registrar;
 use Crustum\Mcp\Server\ServerUrl;
@@ -19,6 +20,7 @@ beforeEach(function (): void {
     ServerUrl::resolveUsing(null);
     Configure::delete('Mcp.base_url');
     Configure::delete('App.fullBaseUrl');
+    Router::reload();
 });
 
 it('normalizes windows paths for external process arguments', function (): void {
@@ -89,11 +91,11 @@ it('rejects non-string handle arguments', function (): void {
         }],
     ));
 
-    expect(function (): void {
-        $args = new Arguments([123], [], ['handle']);
-        $io = new ConsoleIo(new StubConsoleOutput(), new StubConsoleOutput());
-        (new McpInspectorCommand())->execute($args, $io);
-    })->toThrow(ConsoleException::class);
+    $command = new McpInspectorCommand();
+    setCommandArgs($command, new Arguments([123], [], ['handle']));
+    $command->setIo(new ConsoleIo(new StubConsoleOutput(), new StubConsoleOutput()));
+
+    expect(fn(): ?int => $command->execute())->toThrow(ConsoleException::class);
 });
 
 it('uses the only registered server when a single server exists', function (): void {
@@ -130,11 +132,11 @@ it('fails when a web server URL is not absolute', function (): void {
 
 it('resolves an absolute web server URL from the url option', function (): void {
     $command = new McpInspectorCommand();
-    $args = new Arguments(['demo'], ['url' => 'http://qa.zz/mcp/qa'], ['handle']);
+    setCommandArgs($command, new Arguments(['demo'], ['url' => 'http://example.com/mcp/qa'], ['handle']));
 
-    $url = invokeMcpCommandMethod($command, 'resolveWebServerUrl', [$args, 'mcp/qa']);
+    $url = invokeMcpCommandMethod($command, 'resolveWebServerUrl', ['mcp/qa']);
 
-    expect($url)->toBe('http://qa.zz/mcp/qa');
+    expect($url)->toBe('http://example.com/mcp/qa');
 });
 
 it('resolves web server registrations by uri', function (): void {

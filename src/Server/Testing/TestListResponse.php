@@ -31,7 +31,7 @@ class TestListResponse
         $classes = is_array($classes) ? $classes : [$classes];
 
         foreach ($classes as $class) {
-            $name = (new $class())->name();
+            $name = new $class()->name();
 
             Assert::assertContains($name, $itemNames, "The expected class [{$class}] was not found in the response content.");
         }
@@ -50,7 +50,7 @@ class TestListResponse
         $classes = is_array($classes) ? $classes : [$classes];
 
         foreach ($classes as $class) {
-            $name = (new $class())->name();
+            $name = new $class()->name();
 
             Assert::assertNotContains($name, $itemNames, "The expected class [{$class}] was found in the response content.");
         }

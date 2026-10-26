@@ -49,14 +49,14 @@ function framingTestRequest(string $routeName): ServerRequest
         }
     };
 
-    return (new ServerRequest([
+    return new ServerRequest([
         'environment' => ['REQUEST_METHOD' => 'GET'],
         'url' => '/oauth/authorize',
-    ]))->withAttribute('route', $route);
+    ])->withAttribute('route', $route);
 }
 
 it('denies framing of the authorization pages', function (string $routeName): void {
-    $response = (new AddAuthorizationFramingHeaders())->process(
+    $response = new AddAuthorizationFramingHeaders()->process(
         framingTestRequest($routeName),
         framingTestHandler(),
     );
@@ -75,7 +75,7 @@ it('denies framing of the authorization pages', function (string $routeName): vo
 ]);
 
 it('replaces a weaker frame options header', function (): void {
-    $response = (new AddAuthorizationFramingHeaders())->process(
+    $response = new AddAuthorizationFramingHeaders()->process(
         framingTestRequest('tessera:authorizations.authorize'),
         framingTestHandler(['X-Frame-Options' => 'SAMEORIGIN']),
     );
@@ -84,7 +84,7 @@ it('replaces a weaker frame options header', function (): void {
 });
 
 it('keeps the content security policy the application already set', function (): void {
-    $response = (new AddAuthorizationFramingHeaders())->process(
+    $response = new AddAuthorizationFramingHeaders()->process(
         framingTestRequest('tessera:authorizations.authorize'),
         framingTestHandler(['Content-Security-Policy' => "default-src 'self'"]),
     );
@@ -105,12 +105,12 @@ it('leaves other responses untouched', function (): void {
         }
     };
 
-    $request = (new ServerRequest([
+    $request = new ServerRequest([
         'environment' => ['REQUEST_METHOD' => 'POST'],
         'url' => '/mcp',
-    ]))->withAttribute('route', $route);
+    ])->withAttribute('route', $route);
 
-    $response = (new AddAuthorizationFramingHeaders())->process($request, framingTestHandler());
+    $response = new AddAuthorizationFramingHeaders()->process($request, framingTestHandler());
 
     expect($response->hasHeader('X-Frame-Options'))->toBeFalse()
         ->and($response->hasHeader('Content-Security-Policy'))->toBeFalse();

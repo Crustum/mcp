@@ -348,7 +348,7 @@ class Client
      */
     public function ping(): void
     {
-        (new Ping())->handle($this->protocol);
+        new Ping()->handle($this->protocol);
     }
 
     /**
@@ -361,7 +361,7 @@ class Client
     public function tools(?int $limit = null, ?iterable $default = null): Collection
     {
         try {
-            $tools = (new ListTools(client: $this, limit: $limit))->handle($this->protocol)
+            $tools = new ListTools(client: $this, limit: $limit)->handle($this->protocol)
                 ->filter(fn(Tool $tool): bool => $this->allowsTool($tool->name))
                 ->toArray();
 
@@ -392,7 +392,7 @@ class Client
         }
 
         try {
-            return (new CallTool($name, $arguments, $mirroredParameters))->handle($this->protocol);
+            return new CallTool($name, $arguments, $mirroredParameters)->handle($this->protocol);
         } catch (JsonRpcException $jsonRpcException) {
             if ($jsonRpcException->getCode() !== ErrorCode::HEADER_MISMATCH->value) {
                 throw $jsonRpcException;
@@ -408,7 +408,7 @@ class Client
                 throw $jsonRpcException;
             }
 
-            return (new CallTool($name, $arguments, $refreshed))->handle($this->protocol);
+            return new CallTool($name, $arguments, $refreshed)->handle($this->protocol);
         }
     }
 
@@ -422,7 +422,7 @@ class Client
     public function prompts(?int $limit = null, ?iterable $default = null): Collection
     {
         try {
-            return (new ListPrompts(limit: $limit))->handle($this->protocol);
+            return new ListPrompts(limit: $limit)->handle($this->protocol);
         } catch (AuthorizationRequiredException $authorizationRequiredException) {
             if ($default === null) {
                 throw $authorizationRequiredException;
@@ -441,7 +441,7 @@ class Client
      */
     public function getPrompt(string $name, array $arguments = []): PromptResult
     {
-        return (new GetPrompt($name, $arguments))->handle($this->protocol);
+        return new GetPrompt($name, $arguments)->handle($this->protocol);
     }
 
     /**
@@ -454,7 +454,7 @@ class Client
     public function resources(?int $limit = null, ?iterable $default = null): Collection
     {
         try {
-            return (new ListResources(limit: $limit))->handle($this->protocol);
+            return new ListResources(limit: $limit)->handle($this->protocol);
         } catch (AuthorizationRequiredException $authorizationRequiredException) {
             if ($default === null) {
                 throw $authorizationRequiredException;
@@ -472,7 +472,7 @@ class Client
      */
     public function readResource(string $uri): ResourceReadResult
     {
-        return (new ReadResource($uri))->handle($this->protocol);
+        return new ReadResource($uri)->handle($this->protocol);
     }
 
     /**

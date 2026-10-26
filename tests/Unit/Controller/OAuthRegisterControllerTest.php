@@ -68,7 +68,7 @@ class CustomMetadataClient extends Client
     /**
      * @var array<string, bool>
      */
-    protected array $_accessible = [
+    protected array $patchable = [
         'logo_uri' => true,
         'client_uri' => true,
     ];
@@ -309,7 +309,7 @@ it('persists metadata for supporting custom entities', function (): void {
     createOauthClientsTable();
     TableRegistry::getTableLocator()->remove('Tessera.Clients');
 
-    $client = (new ClientRepository())->createAuthorizationCodeGrantClient(
+    $client = new ClientRepository()->createAuthorizationCodeGrantClient(
         'Custom',
         ['https://app.example/callback'],
         false,

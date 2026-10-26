@@ -9,7 +9,7 @@ use Crustum\Mcp\Server\Tool;
 use Crustum\Mcp\Server\Ui\Enums\Visibility;
 
 it('includes _meta.ui.resourceUri when RendersApp attribute is present', function (): void {
-    $array = (new RendersAppSpecTool())->toArray();
+    $array = new RendersAppSpecTool()->toArray();
 
     expect($array)->toHaveKey('_meta')
         ->and($array['_meta']['ui'])->toHaveKey('resourceUri')
@@ -17,13 +17,13 @@ it('includes _meta.ui.resourceUri when RendersApp attribute is present', functio
 });
 
 it('includes default visibility when RendersApp attribute is present', function (): void {
-    $array = (new RendersAppSpecTool())->toArray();
+    $array = new RendersAppSpecTool()->toArray();
 
     expect($array['_meta']['ui']['visibility'])->toEqual(['model', 'app']);
 });
 
 it('supports custom visibility', function (): void {
-    $array = (new AppOnlyTool())->toArray();
+    $array = new AppOnlyTool()->toArray();
 
     expect($array['_meta']['ui']['visibility'])->toEqual(['app']);
 });

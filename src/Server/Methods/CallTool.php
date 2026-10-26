@@ -43,6 +43,6 @@ class CallTool implements Errable, Method
             );
         }
 
-        return (new ToolInvoker())->invoke($tool, $request);
+        return new ToolInvoker()->invoke($tool, $request);
     }
 }

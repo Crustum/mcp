@@ -236,7 +236,7 @@ class ToolSearch
                 return ['notifications' => [], 'result' => $this->failedResult("Tool [{$name}] is not available.")];
             }
 
-            $toolResponses = (new ToolInvoker(mirrorStructuredContent: false))->invoke($tool, $request);
+            $toolResponses = new ToolInvoker(mirrorStructuredContent: false)->invoke($tool, $request);
             $toolResponses = $toolResponses instanceof JsonRpcResponse ? [$toolResponses] : $toolResponses;
             $notifications = [];
             $result = null;
@@ -275,7 +275,7 @@ class ToolSearch
     {
         $container = ContainerRegistry::getInstance();
 
-        $tools = (new Collection($this->tools))->map(fn(Tool|string $tool): Tool => is_string($tool)
+        $tools = new Collection($this->tools)->map(fn(Tool|string $tool): Tool => is_string($tool)
             ? ($container->has($tool) ? $container->get($tool) : new $tool())
             : $tool);
 

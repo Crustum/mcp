@@ -101,7 +101,7 @@ class HttpFakeRequest implements ArrayAccess
      */
     public function hasHeaders(array $expected): bool
     {
-        return array_all($expected, fn(?string $value, string $name): bool => $this->hasHeader($name, $value));
+        return array_all($expected, fn(string $value, string $name): bool => $this->hasHeader($name, $value));
     }
 
     /**

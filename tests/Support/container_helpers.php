@@ -6,12 +6,12 @@ use Cake\Core\Container;
 /**
  * Get or create a shared test container instance.
  *
- * @return \Cake\Core\Container
+ * @return \Cake\Container\Container
  */
-function testContainer(): Container
+function testContainer(): \Cake\Container\Container
 {
-    if (!isset($GLOBALS['mcp_test_container']) || !$GLOBALS['mcp_test_container'] instanceof Container) {
-        $GLOBALS['mcp_test_container'] = new Container();
+    if (!isset($GLOBALS['mcp_test_container']) || !$GLOBALS['mcp_test_container'] instanceof \Cake\Container\Container) {
+        $GLOBALS['mcp_test_container'] = new \Cake\Container\Container();
     }
 
     return $GLOBALS['mcp_test_container'];

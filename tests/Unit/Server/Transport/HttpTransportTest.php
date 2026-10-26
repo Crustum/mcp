@@ -65,7 +65,7 @@ it('reads JSON-RPC from parsed body when the PSR stream was already consumed', f
         'method' => 'tools/list',
         'params' => ['_meta' => ['io.modelcontextprotocol/protocolVersion' => '2026-07-28']],
     ];
-    $request = (new ServerRequest(['input' => '']))
+    $request = new ServerRequest(['input' => ''])
         ->withParsedBody($payload);
 
     $seen = null;

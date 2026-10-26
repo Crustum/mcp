@@ -201,7 +201,7 @@ trait InteractsWithResponsesTrait
 
         $items = is_array($responseFactory) ? $responseFactory : [$responseFactory];
 
-        $responses = (new Collection($items))
+        $responses = new Collection($items)
             ->map(function (mixed $item): Response {
                 if ($item instanceof Response) {
                     return $item;

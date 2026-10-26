@@ -285,7 +285,7 @@ it('throws -32603 when prompt handler throws a generic exception', function (): 
     );
 
     try {
-        (new GetPrompt())->handle($request, $context);
+        new GetPrompt()->handle($request, $context);
         $this->fail('Expected JsonRpcException to be thrown');
     } catch (JsonRpcException $jsonRpcException) {
         expect($jsonRpcException->getCode())->toBe(-32603)
@@ -329,7 +329,7 @@ it('includes exception message in prompt error when APP_DEBUG is true', function
     );
 
     try {
-        (new GetPrompt())->handle($request, $context);
+        new GetPrompt()->handle($request, $context);
         $this->fail('Expected JsonRpcException to be thrown');
     } catch (JsonRpcException $jsonRpcException) {
         expect($jsonRpcException->getCode())->toBe(-32603)
@@ -373,7 +373,7 @@ it('returns plain message in prompt error when APP_DEBUG is false', function ():
     );
 
     try {
-        (new GetPrompt())->handle($request, $context);
+        new GetPrompt()->handle($request, $context);
         $this->fail('Expected JsonRpcException to be thrown');
     } catch (JsonRpcException $jsonRpcException) {
         expect($jsonRpcException->getCode())->toBe(-32603)

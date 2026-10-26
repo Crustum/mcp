@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use Cake\Console\Arguments;
 use Crustum\Mcp\Server\Registrar;
 use Crustum\Mcp\Test\Support\StubRegistrar;
 
@@ -41,4 +42,17 @@ function invokeMcpCommandMethod(object $command, string $method, array $argument
     $reflectionMethod = $reflection->getMethod($method);
 
     return $reflectionMethod->invoke($command, ...$arguments);
+}
+
+/**
+ * Set console arguments on a command (plain commands expose no setArgs()).
+ *
+ * @param object $command Command instance
+ * @param \Cake\Console\Arguments $args Console arguments
+ * @return void
+ */
+function setCommandArgs(object $command, Arguments $args): void
+{
+    $property = new ReflectionProperty($command, 'args');
+    $property->setValue($command, $args);
 }

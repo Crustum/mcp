@@ -5,6 +5,7 @@ on:
     branches:
       - 'main'
       - '1.x'
+      - '2.x'
   pull_request:
     branches:
       - '*'
@@ -20,12 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - php-version: '8.2'
+          - php-version: '8.5'
             dependencies: lowest
-          - php-version: '8.3'
-            dependencies: highest
-          - php-version: '8.4'
-            dependencies: highest
           - php-version: '8.5'
             dependencies: highest
 
@@ -55,15 +52,15 @@ jobs:
         fi
 
     - name: Run Pest with coverage
-      if: matrix.php-version == '8.2'
+      if: matrix.php-version == '8.5'
       run: vendor/bin/pest --coverage --coverage-clover=coverage.xml
 
     - name: Run Pest
-      if: matrix.php-version != '8.2'
+      if: matrix.php-version != '8.5'
       run: vendor/bin/pest
 
     - name: Submit code coverage
-      if: matrix.php-version == '8.2'
+      if: matrix.php-version == '8.5'
       uses: codecov/codecov-action@v7
 
   cs-stan:
@@ -76,7 +73,7 @@ jobs:
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.2'
+        php-version: '8.5'
         extensions: mbstring, intl
         coverage: none
 
@@ -91,6 +88,9 @@ jobs:
 
     - name: Run PHP CodeSniffer
       run: composer cs-check
+
+    - name: Run Rector Check
+      run: composer rector-check
 
     - name: Run phpstan
       run: composer stan

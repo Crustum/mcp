@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Command;
 
 use Cake\Command\Command;
-use Cake\Console\Arguments;
-use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Crustum\Mcp\Server\Registrar;
 use Crustum\Mcp\Server\ServerUrl;
@@ -28,16 +26,13 @@ class McpInspectorCommand extends Command
     /**
      * Execute the command.
      *
-     * @param \Cake\Console\Arguments $args The command arguments
-     * @param \Cake\Console\ConsoleIo $io The console io
      * @return int|null
      */
-    public function execute(Arguments $args, ConsoleIo $io): ?int
+    public function execute(): ?int
     {
-        $handle = $args->getArgument('handle');
-
+        $handle = $this->args->getArgument('handle');
         if (!is_string($handle) || $handle === '') {
-            $io->error('Please pass a valid MCP server handle.');
+            $this->io->error('Please pass a valid MCP server handle.');
 
             return static::CODE_ERROR;
         }
@@ -45,14 +40,12 @@ class McpInspectorCommand extends Command
         $registrar = Registrar::getInstance();
         $registrar->ensureConfigured();
 
-        $io->info("Starting the MCP Inspector for server [{$handle}]");
-
+        $this->io->info("Starting the MCP Inspector for server [{$handle}]");
         $localServer = $registrar->getLocalServer($handle);
         $webServer = $registrar->getWebServer($handle);
         $servers = $registrar->servers();
-
         if ($servers === []) {
-            $io->error('No MCP servers found. Please run `bin/cake bake mcp_server [name]` and register the server.');
+            $this->io->error('No MCP servers found. Please run `bin/cake bake mcp_server [name]` and register the server.');
 
             return static::CODE_ERROR;
         }
@@ -74,7 +67,7 @@ class McpInspectorCommand extends Command
                 static fn(string $server): string => "[{$server}]",
                 array_keys($servers),
             );
-            $io->error(
+            $this->io->error(
                 'MCP Server with name [' . $handle . '] not found. Available servers: ' . implode(', ', $availableServers),
             );
 
@@ -82,9 +75,8 @@ class McpInspectorCommand extends Command
         }
 
         $env = [];
-        $host = $args->getOption('host');
-        $port = $args->getOption('port');
-
+        $host = $this->args->getOption('host');
+        $port = $this->args->getOption('port');
         if (is_string($host) && $host !== '') {
             $env['HOST'] = $host;
         }
@@ -114,19 +106,19 @@ class McpInspectorCommand extends Command
                 ]),
             ];
         } else {
-            $uri = $this->promptForRouteParameters($webServer->uri, $io);
+            $uri = $this->promptForRouteParameters($webServer->uri);
 
             if ($uri === null) {
-                $io->error('Every route parameter needs a value to inspect this server');
+                $this->io->error('Every route parameter needs a value to inspect this server');
 
                 return static::CODE_ERROR;
             }
 
-            $serverUrl = $this->resolveWebServerUrl($args, $uri);
+            $serverUrl = $this->resolveWebServerUrl($uri);
 
             if ($serverUrl === null) {
-                $io->error('MCP Inspector requires an absolute server URL.');
-                $io->out('Configure one of: App.fullBaseUrl, Mcp.base_url, APP_URL, or pass --url=http://your-host/mcp/qa');
+                $this->io->error('MCP Inspector requires an absolute server URL.');
+                $this->io->out('Configure one of: App.fullBaseUrl, Mcp.base_url, APP_URL, or pass --url=http://your-host/mcp/qa');
 
                 return static::CODE_ERROR;
             }
@@ -148,11 +140,9 @@ class McpInspectorCommand extends Command
         }
 
         $serverConfig['protocolEra'] = 'modern';
-
         $configPath = tempnam(sys_get_temp_dir(), 'mcp-inspector-');
-
         if ($configPath === false) {
-            $io->error('Unable to write the MCP Inspector configuration file.');
+            $this->io->error('Unable to write the MCP Inspector configuration file.');
 
             return static::CODE_ERROR;
         }
@@ -160,32 +150,28 @@ class McpInspectorCommand extends Command
         file_put_contents($configPath, (string)json_encode([
             'mcpServers' => [$handle => $serverConfig],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-
         $command = [
             'npx',
             '@modelcontextprotocol/inspector',
             '--config',
             $configPath,
         ];
-
         $guidance['Protocol Era'] = 'modern';
         $guidance['Config'] = $configPath;
-
         $process = new Process($command, ROOT, $env);
         $process->setTimeout(null);
-
         try {
             foreach ($guidance as $guidanceKey => $guidanceValue) {
-                $io->out(sprintf('%s => %s', $guidanceKey, $guidanceValue));
+                $this->io->out(sprintf('%s => %s', $guidanceKey, $guidanceValue));
             }
 
-            $io->out('');
+            $this->io->out('');
 
             $process->mustRun(function (int|string $type, string $buffer): void {
                 echo $buffer;
             });
         } catch (Throwable $throwable) {
-            $io->error('Failed to start MCP Inspector: ' . $throwable->getMessage());
+            $this->io->error('Failed to start MCP Inspector: ' . $throwable->getMessage());
 
             return static::CODE_ERROR;
         }
@@ -197,10 +183,9 @@ class McpInspectorCommand extends Command
      * Prompt for values of route parameters in a server URI.
      *
      * @param string $uri Registered MCP server URI
-     * @param \Cake\Console\ConsoleIo $io Console IO
      * @return string|null
      */
-    protected function promptForRouteParameters(string $uri, ConsoleIo $io): ?string
+    protected function promptForRouteParameters(string $uri): ?string
     {
         $parameters = $this->routeParameters($uri);
 
@@ -211,7 +196,7 @@ class McpInspectorCommand extends Command
         $values = [];
 
         foreach ($parameters as $parameter) {
-            $value = trim($io->ask("What is the value for the [{$parameter}] route parameter?"));
+            $value = trim($this->io->ask("What is the value for the [{$parameter}] route parameter?"));
 
             if ($value === '') {
                 return null;
@@ -303,19 +288,18 @@ class McpInspectorCommand extends Command
      */
     protected function phpBinary(): string
     {
-        return (new PhpExecutableFinder())->find(false) ?: 'php';
+        return new PhpExecutableFinder()->find(false) ?: 'php';
     }
 
     /**
      * Resolve the absolute MCP web server URL for the inspector.
      *
-     * @param \Cake\Console\Arguments $args Command arguments
      * @param string $uri Registered MCP server URI
      * @return string|null
      */
-    protected function resolveWebServerUrl(Arguments $args, string $uri): ?string
+    protected function resolveWebServerUrl(string $uri): ?string
     {
-        $url = $args->getOption('url');
+        $url = $this->args->getOption('url');
 
         $serverUrl = is_string($url) && $url !== '' ? rtrim($url, '/') : ServerUrl::forPath($uri);
 

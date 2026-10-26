@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Command;
 
 use Cake\Command\Command;
-use Cake\Console\Arguments;
-use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Crustum\Mcp\Server\Registrar;
 use Override;
@@ -23,16 +21,13 @@ class McpStartCommand extends Command
     /**
      * Execute the command.
      *
-     * @param \Cake\Console\Arguments $args The command arguments
-     * @param \Cake\Console\ConsoleIo $io The console io
      * @return int|null
      */
-    public function execute(Arguments $args, ConsoleIo $io): ?int
+    public function execute(): ?int
     {
-        $handle = $args->getArgument('handle');
-
+        $handle = $this->args->getArgument('handle');
         if (!is_string($handle) || $handle === '') {
-            $io->error('Please pass a valid MCP server handle.');
+            $this->io->error('Please pass a valid MCP server handle.');
 
             return static::CODE_ERROR;
         }
@@ -41,9 +36,8 @@ class McpStartCommand extends Command
         $registrar->ensureConfigured();
 
         $server = $registrar->getLocalServer($handle);
-
         if ($server === null) {
-            $io->error("MCP Server with name [{$handle}] not found. Did you register it using Registrar::local()?");
+            $this->io->error("MCP Server with name [{$handle}] not found. Did you register it using Registrar::local()?");
 
             return static::CODE_ERROR;
         }

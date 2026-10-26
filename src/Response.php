@@ -191,7 +191,7 @@ class Response
             );
         }
 
-        return (new ResponseFactory(new static(new StructuredContentText($json))))->withStructuredContent($response);
+        return new ResponseFactory(new static(new StructuredContentText($json)))->withStructuredContent($response);
     }
 
     /**
