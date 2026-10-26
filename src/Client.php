@@ -33,6 +33,7 @@ use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Schema\Implementation;
 use Crustum\Mcp\Support\MirroredParameters;
+use Crustum\Mcp\Support\Str;
 
 /**
  * MCP client for local and remote servers.
@@ -52,6 +53,20 @@ class Client
      * @var string|null
      */
     protected ?string $name = null;
+
+    /**
+     * Tool name patterns allowed on this client (null allows every tool).
+     *
+     * @var array<int, string>|null
+     */
+    protected ?array $onlyTools = null;
+
+    /**
+     * Tool name patterns blocked on this client.
+     *
+     * @var array<int, string>
+     */
+    protected array $exceptTools = [];
 
     /**
      * Create a new MCP client.
@@ -109,11 +124,12 @@ class Client
      *
      * @param string $command Subprocess command
      * @param array<int, string> $args Subprocess arguments
+     * @param array<string, string> $env Subprocess environment variables
      * @return self
      */
-    public static function local(string $command, array $args = []): self
+    public static function local(string $command, array $args = [], array $env = []): self
     {
-        return new self(new StdioTransport($command, $args));
+        return new self(new StdioTransport($command, $args, $env));
     }
 
     /**
@@ -138,6 +154,44 @@ class Client
         $this->transport->setTimeoutSeconds($seconds);
 
         return $this;
+    }
+
+    /**
+     * Limit the client to tools matching the given name patterns.
+     *
+     * @param array<int, string> $tools Tool name patterns
+     * @return static
+     */
+    public function onlyTools(array $tools): static
+    {
+        $this->onlyTools = $tools;
+
+        return $this;
+    }
+
+    /**
+     * Block tools matching the given name patterns on this client.
+     *
+     * @param array<int, string> $tools Tool name patterns
+     * @return static
+     */
+    public function exceptTools(array $tools): static
+    {
+        $this->exceptTools = $tools;
+
+        return $this;
+    }
+
+    /**
+     * Determine whether a tool may be listed or called on this client.
+     *
+     * @param string $name Tool name
+     * @return bool
+     */
+    public function allowsTool(string $name): bool
+    {
+        return ($this->onlyTools === null || Str::is($this->onlyTools, $name))
+            && !Str::is($this->exceptTools, $name);
     }
 
     /**
@@ -307,7 +361,11 @@ class Client
     public function tools(?int $limit = null, ?iterable $default = null): Collection
     {
         try {
-            return (new ListTools(client: $this, limit: $limit))->handle($this->protocol);
+            $tools = (new ListTools(client: $this, limit: $limit))->handle($this->protocol)
+                ->filter(fn(Tool $tool): bool => $this->allowsTool($tool->name))
+                ->toArray();
+
+            return new Collection($tools);
         } catch (AuthorizationRequiredException $authorizationRequiredException) {
             if ($default === null) {
                 throw $authorizationRequiredException;
@@ -328,6 +386,10 @@ class Client
     {
         $name = $tool instanceof Tool ? $tool->name : $tool;
         $mirroredParameters = $tool instanceof Tool ? $tool->mirroredParameters() : null;
+
+        if (!$this->allowsTool($name)) {
+            throw new ClientException("MCP tool [{$name}] is not allowed on this client.");
+        }
 
         try {
             return (new CallTool($name, $arguments, $mirroredParameters))->handle($this->protocol);
@@ -430,6 +492,8 @@ class Client
             'transport' => $this->transport->recipe(),
             'protocolVersion' => $this->protocol->pinnedProtocolVersion()?->value,
             'cache' => $this->protocol->cache(),
+            'onlyTools' => $this->onlyTools,
+            'exceptTools' => $this->exceptTools,
         ];
     }
 
@@ -442,7 +506,6 @@ class Client
     public function __unserialize(array $data): void
     {
         $this->name = Hash::get($data, 'name');
-        $cache = null;
 
         if ($this->name !== null) {
             $resolved = ClientManager::getInstance()->build($this->name);
@@ -450,11 +513,16 @@ class Client
             $this->transport = $resolved->transport;
             $this->clientInfo = $resolved->clientInfo;
             $pinned = $resolved->protocol->pinnedProtocolVersion();
+            $cache = $resolved->protocol->cache();
+            $this->onlyTools = $resolved->onlyTools;
+            $this->exceptTools = $resolved->exceptTools;
         } else {
             $this->clientInfo = Hash::get($data, 'clientInfo');
             $this->transport = TransportFactory::fromRecipe(Hash::get($data, 'transport'));
             $pinned = ProtocolVersion::tryFrom((string)Hash::get($data, 'protocolVersion'));
             $cache = Hash::get($data, 'cache');
+            $this->onlyTools = Hash::get($data, 'onlyTools');
+            $this->exceptTools = Hash::get($data, 'exceptTools', []);
         }
 
         $this->clientInfo ??= $this->defaultClientInfo();

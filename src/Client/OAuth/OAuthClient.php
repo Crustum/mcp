@@ -41,6 +41,7 @@ class OAuthClient
      * @param \Crustum\Mcp\Client\OAuth\AuthServerDiscovery $discovery Authorization server discovery service
      * @param \Cake\Http\Session|null $session HTTP session for browser OAuth state
      * @param string|null $clientIdMetadataUrl Client ID metadata document URL
+     * @param array<string, string> $resourceHeaders Client headers forwarded to the resource probe
      */
     public function __construct(
         protected OAuthConfig $config,
@@ -50,6 +51,7 @@ class OAuthClient
         protected AuthServerDiscovery $discovery = new AuthServerDiscovery(),
         protected ?Session $session = null,
         protected ?string $clientIdMetadataUrl = null,
+        protected array $resourceHeaders = [],
     ) {
         $this->resourceUrl = self::stripFragment($this->resourceUrl);
     }
@@ -62,6 +64,10 @@ class OAuthClient
      */
     public function redirect(?string $returnTo = null): Response
     {
+        if ($this->resourceMetadataUrl !== null) {
+            $this->discovery->requireAdvertised($this->resourceUrl, $this->resourceMetadataUrl, $this->resourceHeaders);
+        }
+
         $session = $this->requireSession();
         $discovered = $this->discover();
         $metadata = $discovered->server;

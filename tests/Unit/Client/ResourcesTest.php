@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 use Cake\Collection\Collection;
-// use Illuminate\Support\Facades\Http;
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
 use Crustum\Mcp\Client\Primitives\Resource;

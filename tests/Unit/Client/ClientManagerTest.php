@@ -2,11 +2,13 @@
 declare(strict_types=1);
 
 use Cake\Collection\Collection;
-// use Illuminate\Support\Facades\Http;
+use Cake\Core\Configure;
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\ClientManager;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
+use Crustum\Mcp\Client\Schema\ToolResult;
 use Crustum\Mcp\Client\Transport\HttpTransport;
+use Crustum\Mcp\Enums\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Facades\Mcp;
 use Crustum\Mcp\Test\Fixtures\Client\FakeTransport;
@@ -21,6 +23,40 @@ function toolsResponse(int $id): string
         'result' => [
             'tools' => [['name' => 'add', 'description' => 'Adds two numbers']],
         ],
+    ]);
+}
+
+beforeEach(function (): void {
+    $GLOBALS['mcp_clients_config_backup'] = Configure::read('Mcp.clients');
+});
+
+afterEach(function (): void {
+    if (!array_key_exists('mcp_clients_config_backup', $GLOBALS)) {
+        return;
+    }
+
+    $backup = $GLOBALS['mcp_clients_config_backup'];
+
+    if ($backup === null) {
+        Configure::delete('Mcp.clients');
+    } else {
+        Configure::write('Mcp.clients', $backup);
+    }
+
+    unset($GLOBALS['mcp_clients_config_backup']);
+});
+
+function transportRecipe(Client $client): array
+{
+    return (new ReflectionProperty(Client::class, 'transport'))->getValue($client)->recipe();
+}
+
+function listToolsResponse(int $id, array $names): string
+{
+    return json_encode([
+        'jsonrpc' => '2.0',
+        'id' => $id,
+        'result' => ['tools' => array_map(fn (string $name): array => ['name' => $name], $names)],
     ]);
 }
 
@@ -306,4 +342,166 @@ it('propagates a live fetch failure', function (): void {
         ->toThrow(ClientException::class, 'Invalid tools/list response from server.');
 
     expect($transport->responses)->toBeEmpty();
+});
+
+it('provides a read only github client from config', function (): void {
+    config(['Mcp.clients.github.token' => 'gh-token']);
+
+    $client = Mcp::client('github');
+
+    expect($client)->toBeInstanceOf(WebClient::class)
+        ->and(transportRecipe($client))->toMatchArray([
+            'url' => 'https://api.githubcopilot.com/mcp/',
+            'token' => 'gh-token',
+            'headers' => ['X-MCP-Readonly' => 'true'],
+        ]);
+});
+
+it('provides a linear client from config', function (): void {
+    config(['Mcp.clients.linear.token' => 'lin-token']);
+
+    expect(transportRecipe(Mcp::client('linear')))->toMatchArray([
+        'url' => 'https://mcp.linear.app/mcp',
+        'token' => 'lin-token',
+    ]);
+});
+
+it('provides a headless playwright client from config', function (): void {
+    expect(transportRecipe(Mcp::client('playwright')))->toMatchArray([
+        'command' => 'npx',
+        'args' => ['-y', '@playwright/mcp@latest', '--headless'],
+    ]);
+});
+
+it('resolves any client defined in config', function (): void {
+    config(['Mcp.clients.sentry' => [
+        'url' => 'https://mcp.sentry.dev/mcp',
+        'token' => 'sentry-token',
+        'headers' => ['X-Org' => 'acme', 'X-Empty' => null],
+        'timeout' => 5,
+    ]]);
+
+    $client = Mcp::client('sentry');
+
+    expect(transportRecipe($client))->toMatchArray([
+        'url' => 'https://mcp.sentry.dev/mcp',
+        'token' => 'sentry-token',
+        'headers' => ['X-Org' => 'acme'],
+        'timeoutSeconds' => 5.0,
+    ]);
+});
+
+it('resolves a local client defined in config', function (): void {
+    config(['Mcp.clients.weather' => [
+        'command' => 'php',
+        'args' => ['artisan', 'mcp:start', 'weather'],
+        'env' => ['WEATHER_API_KEY' => 'secret', 'UNSET' => null],
+        'timeout' => 10,
+    ]]);
+
+    expect(transportRecipe(Mcp::client('weather')))->toMatchArray([
+        'command' => 'php',
+        'args' => ['artisan', 'mcp:start', 'weather'],
+        'env' => ['WEATHER_API_KEY' => 'secret'],
+        'timeoutSeconds' => 10.0,
+    ]);
+});
+
+it('applies oauth, cache and protocol version from config', function (): void {
+    config(['Mcp.clients.sentry' => [
+        'url' => 'https://mcp.sentry.dev/mcp',
+        'oauth' => [
+            'client_id' => 'sentry-id',
+            'client_secret' => 'sentry-secret',
+            'scope' => 'org:read',
+            'redirect_uri' => 'https://app.test/callback',
+        ],
+        'cache' => ['store' => 'array', 'for' => 'tenant-a'],
+        'protocol_version' => '2025-06-18',
+    ]]);
+
+    $client = Mcp::client('sentry');
+    $protocol = (new ReflectionProperty(Client::class, 'protocol'))->getValue($client);
+    $oauth = (new ReflectionProperty(WebClient::class, 'oAuthConfig'))->getValue($client);
+
+    expect($oauth->clientId)->toBe('sentry-id')
+        ->and($oauth->clientSecret)->toBe('sentry-secret')
+        ->and($oauth->scope)->toBe('org:read')
+        ->and($oauth->redirectUri)->toBe('https://app.test/callback')
+        ->and($protocol->cache()?->store)->toBe('array')
+        ->and($protocol->cache()?->for)->toBe('tenant-a')
+        ->and($protocol->pinnedProtocolVersion())->toBe(ProtocolVersion::V2025_06_18);
+});
+
+it('enables the default cache when cache is true', function (): void {
+    config(['Mcp.clients.local' => ['command' => 'php', 'cache' => true]]);
+
+    $protocol = (new ReflectionProperty(Client::class, 'protocol'))->getValue(Mcp::client('local'));
+
+    expect($protocol->cache()?->store)->toBeNull()
+        ->and($protocol->cache()?->for)->toBeNull();
+});
+
+it('throws when a config client defines neither a url nor a command', function (): void {
+    config(['Mcp.clients.broken' => ['token' => 'secret']]);
+
+    expect(fn (): Client => Mcp::client('broken'))
+        ->toThrow(ClientException::class, 'MCP client [broken] must define a [url] or [command].');
+});
+
+it('prefers a registered client over the config entry', function (): void {
+    $web = new WebClient(new HttpTransport('https://custom.test/mcp'));
+
+    Mcp::registerClient('github', fn (): WebClient => $web);
+
+    expect(Mcp::client('github'))->toBe($web);
+});
+
+it('filters tools with only and except patterns', function (): void {
+    $transport = new FakeTransport();
+    $transport->responses[] = initializeResponse();
+    $transport->responses[] = listToolsResponse(2, ['get_issue', 'list_issues', 'delete_issue', 'create_branch']);
+
+    $client = (new Client($transport))->onlyTools(['*_issue', 'list_*'])->exceptTools(['delete_*']);
+
+    expect(collectionKeys($client->tools()))->toBe(['get_issue', 'list_issues']);
+});
+
+it('refuses to call an excluded tool', function (): void {
+    $client = (new Client(new FakeTransport()))->exceptTools(['delete_*']);
+
+    expect(fn (): ToolResult => $client->callTool('delete_issue'))
+        ->toThrow(ClientException::class, 'MCP tool [delete_issue] is not allowed on this client.');
+});
+
+it('applies tool filters from config', function (): void {
+    config(['Mcp.clients.local' => [
+        'command' => 'php',
+        'tools' => ['only' => ['say-*'], 'except' => ['say-bye']],
+    ]]);
+
+    $client = Mcp::client('local');
+
+    expect($client->allowsTool('say-hi'))->toBeTrue()
+        ->and($client->allowsTool('say-bye'))->toBeFalse()
+        ->and($client->allowsTool('add'))->toBeFalse();
+});
+
+it('keeps tool filters when an unnamed client is serialized', function (): void {
+    $client = Client::local('php')->onlyTools(['say-*'])->exceptTools(['say-bye']);
+
+    $restored = unserialize(serialize($client));
+
+    expect($restored->allowsTool('say-hi'))->toBeTrue()
+        ->and($restored->allowsTool('say-bye'))->toBeFalse()
+        ->and($restored->allowsTool('add'))->toBeFalse();
+});
+
+it('keeps tool filters when a named client is restored', function (): void {
+    config(['Mcp.clients.local' => ['command' => 'php', 'tools' => ['except' => ['say-bye']]]]);
+
+    $restored = unserialize(serialize(Mcp::client('local')));
+
+    expect($restored->allowsTool('say-bye'))->toBeFalse()
+        ->and($restored->allowsTool('say-hi'))->toBeTrue();
 });

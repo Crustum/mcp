@@ -53,9 +53,11 @@ abstract class Resource extends Primitive
 
         $attribute = $this->resolveAttribute(Uri::class);
 
-        return $attribute !== null
-            ? $attribute->value
-            : ($this->uri !== '' ? $this->uri : $this->defaultUriScheme . '://resources/' . Str::kebab((new ReflectionClass($this))->getShortName()));
+        if ($attribute instanceof Uri) {
+            return $attribute->value;
+        }
+
+        return $this->uri !== '' ? $this->uri : $this->defaultUriScheme . '://resources/' . Str::kebab((new ReflectionClass($this))->getShortName());
     }
 
     /**
@@ -77,9 +79,11 @@ abstract class Resource extends Primitive
     {
         $attribute = $this->resolveAttribute(MimeType::class);
 
-        return $attribute !== null
-            ? $attribute->value
-            : ($this->mimeType !== '' ? $this->mimeType : 'text/plain');
+        if ($attribute instanceof MimeType) {
+            return $attribute->value;
+        }
+
+        return $this->mimeType !== '' ? $this->mimeType : 'text/plain';
     }
 
     /**

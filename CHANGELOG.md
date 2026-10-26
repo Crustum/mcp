@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Config-driven named MCP clients: `Mcp.clients` entries with a `url` (remote) or a
+  `command` plus `args`/`env` (local) resolve through `ClientManager::build()` when
+  no factory is registered, with `github`, `linear`, and `playwright` presets.
+  Remote entries support `token`, `headers`, `oauth`, `timeout`, `cache`, and
+  `protocol_version`; local entries support `timeout`, `cache`, and `env`.
+- Per-client tool filtering: `Client::onlyTools()` / `exceptTools()` accept wildcard
+  patterns, `Client::allowsTool()` gates `tools()` and `callTool()` (excluded calls
+  throw), filters travel with serialization, and `Mcp.clients.*.tools.only` /
+  `tools.except` apply them from config. `Client::local()` and stdio transports
+  accept subprocess environment variables that round-trip through transport recipes.
+- Tool payloads always carry the title inside `annotations.title` (a tool-declared
+  `title` annotation wins).
+- Browser OAuth flows verify that the resource advertises caller-supplied
+  protected-resource metadata: the connect route probes the resource with a
+  `ping` request (following up to five redirects, forwarding client headers
+  except authorization and session headers) and rejects the flow when the
+  resource does not answer `401`/`403` with a matching `resource_metadata`
+  challenge. Direct token grants never probe.
+- The OAuth consent template names the redirect target (`redirect_uri` query,
+  falling back to the client's first registered URI).
+- OAuth authorize and device pages send `X-Frame-Options: DENY` plus
+  `frame-ancestors 'none'` via the global `AddAuthorizationFramingHeaders`
+  middleware.
+
+### Fixed
+
+- Requests with a `null` id are rejected as invalid (`-32600`) instead of being
+  silently treated as notifications.
+- Authorization server metadata advertises `token_endpoint_auth_methods_supported`
+  (`none`, `client_secret_basic`, `client_secret_post`).
+- Legacy requests carrying an unknown `MCP-Protocol-Version` header are rejected
+  with `-32022` (accepted versions: `2025-11-25`, `2025-06-18`, `2025-03-26`).
+- The legacy `initialize` handshake answers `2025-03-26` clients with the
+  requested version instead of offering `2025-11-25`.
+- Dynamic client registration accepts at most 10 redirect URIs, each at most
+  1024 characters long.
+- OAuth endpoint requests are restricted to HTTP/HTTPS at the transport level
+  and cap response bodies at 1 MiB.
+
+### Changed
+
+- MCP app examples check `result.isError` before reading tool output (quick start,
+  polling, binary resources, and streamed results).
+- The plugin manifest is a soft dependency: `crustum/plugin-manifest` moved to
+  require-dev (kept as a suggestion) with the standalone `McpManifest`
+  provider, and the plugin class no longer carries the manifest interface.
+
+## [1.0.1]
+
+### Added
+
+- An opt-out for dynamic client registration: `Registrar::oauthRoutes()` accepts
+  `$registration = false`, and the authorization server metadata only advertises
+  `registration_endpoint` when a `mcp.oauth.register` route exists (custom prefixes
+  and custom registration paths included).
+
 ## [1.0.0]
 
 ### Added
@@ -80,7 +140,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fall back to the default).
 - An injectable output stream in `Server\Transport\StdioTransport` (STDOUT remains
   the default).
-- The 1.0.0 upgrade guide (`docs/upgrade-1.0.md`).
 
 ### Changed
 
@@ -116,3 +175,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `max-content` height probe, `window.innerWidth` width).
 - `config/mcp.php` documents the `redirect_domains`, `custom_schemes`,
   `authorization_server`, `tool_search`, and `oauth` options.
+- OAuth redirect validation rejects userinfo (`user`/`password` parts) and matches
+  loopback hosts by parsed host instead of URL prefix.
+- `execute_tools` no longer duplicates `Response::structured()` data into the text
+  block, so structured output is charged once against
+  `tool_search.max_output_bytes`; direct `tools/call` output is unchanged. The JSON
+  mirror is marked with the new `Server\Content\StructuredContentText` content type.
+- OAuth issuer discovery tolerates a trailing slash on the issuer URL when building
+  authorization server metadata candidates.

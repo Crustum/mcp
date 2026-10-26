@@ -399,7 +399,7 @@ use Crustum\Mcp\Request;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\Server\Attributes\Description;
 use Crustum\Mcp\Server\Tool;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Crustum\JsonSchema\Contracts\JsonSchema;
 
 #[Description('Fetches the current weather forecast for a specified location.')]
 class CurrentWeatherTool extends Tool
@@ -420,8 +420,8 @@ class CurrentWeatherTool extends Tool
     /**
      * Get the tool's input schema.
      *
-     * @param \Illuminate\Contracts\JsonSchema\JsonSchema $schema JSON schema builder
-     * @return array<string, \Illuminate\JsonSchema\Types\Type>
+     * @param \Crustum\JsonSchema\Contracts\JsonSchema $schema JSON schema builder
+     * @return array<string, \Crustum\JsonSchema\Types\Type>
      */
     public function schema(JsonSchema $schema): array
     {
@@ -549,7 +549,7 @@ class CurrentWeatherTool extends Tool
 <a name="tool-input-schemas"></a>
 ### Tool Input Schemas
 
-Tools can define input schemas to specify what arguments they accept from AI clients. Use the JSON Schema builder (`JsonSchema`) from the `illuminate/json-schema` package (a plugin dependency used only for MCP/tool schemas) to define your tool's input requirements:
+Tools can define input schemas to specify what arguments they accept from AI clients. Use the JSON Schema builder (`JsonSchema`) from the `crustum/json-schema` package (a plugin dependency used only for MCP/tool schemas) to define your tool's input requirements:
 
 ```php
 <?php
@@ -558,15 +558,15 @@ declare(strict_types=1);
 namespace App\Mcp\Tools;
 
 use Crustum\Mcp\Server\Tool;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Crustum\JsonSchema\Contracts\JsonSchema;
 
 class CurrentWeatherTool extends Tool
 {
     /**
      * Get the tool's input schema.
      *
-     * @param \Illuminate\Contracts\JsonSchema\JsonSchema $schema JSON schema builder
-     * @return array<string, \Illuminate\JsonSchema\Types\Type>
+     * @param \Crustum\JsonSchema\Contracts\JsonSchema $schema JSON schema builder
+     * @return array<string, \Crustum\JsonSchema\Types\Type>
      */
     public function schema(JsonSchema $schema): array
     {
@@ -598,15 +598,15 @@ declare(strict_types=1);
 namespace App\Mcp\Tools;
 
 use Crustum\Mcp\Server\Tool;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Crustum\JsonSchema\Contracts\JsonSchema;
 
 class CurrentWeatherTool extends Tool
 {
     /**
      * Get the tool's output schema.
      *
-     * @param \Illuminate\Contracts\JsonSchema\JsonSchema $schema JSON schema builder
-     * @return array<string, \Illuminate\JsonSchema\Types\Type>
+     * @param \Crustum\JsonSchema\Contracts\JsonSchema $schema JSON schema builder
+     * @return array<string, \Crustum\JsonSchema\Types\Type>
      */
     public function outputSchema(JsonSchema $schema): array
     {
@@ -1883,6 +1883,8 @@ Icons defined via the attribute and the `icons` method are combined automaticall
 
 Just like routes, you can authenticate web MCP servers with middleware. Adding authentication to your MCP server will require a client to authenticate before using any capability of the server.
 
+This section covers external AI clients accessing **your application's MCP servers**. To connect your application to another service's MCP server using a user's credentials, see [Client Authentication](#client-authentication) instead.
+
 There are two common approaches: OAuth 2.1 via Tessera (`crustum/tessera`), or bearer-token middleware that inspects the `Authorization` header.
 
 Web MCP endpoints are **unauthenticated until you attach middleware**. That matches the package’s role as a capability framework: local demos and STDIO servers stay easy to wire, while production hosts must opt into auth. CakeDC\Auth `bypassAuth` on `Server` only skips HTML login redirects — it is **not** MCP authorization. STDIO / `Mcp.local` servers trust the process boundary; HTTP is the public threat surface.
@@ -1981,7 +1983,9 @@ Configure the authorization server issuer and optional endpoint overrides in `co
 
 Authorize and token endpoints typically live on Tessera (`/oauth/*`). MCP clients discover them through the well-known metadata served by the plugin.
 
-The plugin ships an opt-in consent template with OAuth client branding (`templates/Authorization/authorize.php`: `logo_uri` image with fallback, `client_uri` link). Nothing enables it automatically — opt in with `Tessera::authorizationView('Mcp.Authorization/authorize')`, or copy it to the host app at `templates/plugin/Tessera/Authorization/authorize.php` (the host override wins by Cake convention, zero code).
+The plugin ships an opt-in consent template with OAuth client branding (`templates/Authorization/authorize.php`: `logo_uri` image with fallback, `client_uri` link). Nothing enables it automatically — opt in with `Tessera::authorizationView('Mcp.Authorization/authorize')`, or copy it to the host app at `templates/plugin/Tessera/Authorization/authorize.php` (the host override wins by Cake convention, zero code). The template names the redirect target (`redirect_uri` query, falling back to the client's first registered URI) so users can see where approval sends them.
+
+The OAuth authorize and device pages send `X-Frame-Options: DENY` plus `frame-ancestors 'none'` (appended to any application CSP) via the plugin's global `AddAuthorizationFramingHeaders` middleware, so consent screens cannot be framed.
 
 > [!NOTE]
 > In many MCP deployments, OAuth is primarily used as a translation layer to an authenticated principal. The plugin advertises and uses a single `mcp:use` scope for MCP access.
@@ -2073,6 +2077,8 @@ Throwing authentication or authorization exceptions from handlers is also suppor
 
 In addition to building servers, the CakePHP MCP plugin includes a client for connecting to other MCP servers, whether first-party or third-party. The client lets your application discover and call the tools, prompts, and resources exposed by an MCP server.
 
+For example, a chat application may connect to GitHub's MCP server using each user's GitHub token, allowing it to answer questions about that user's repositories. In this scenario, your application is the MCP client; you do not need to create an MCP server.
+
 <a name="client-connecting"></a>
 ### Connecting to Servers
 
@@ -2081,7 +2087,7 @@ You may connect to an HTTP-accessible MCP server using the `Client::web` method,
 ```php
 use Crustum\Mcp\Client;
 
-$client = Client::web('https://mcp.example.com');
+$client = Client::web('https://api.githubcopilot.com/mcp/');
 ```
 
 To connect to a local MCP server that runs as a command, use the `Client::local` method, providing the command and any arguments needed to start the server:
@@ -2110,13 +2116,13 @@ $client->disconnect();
 You may customize the request timeout using the `withTimeout` method:
 
 ```php
-$client = Client::web('https://mcp.example.com')->withTimeout(30);
+$client = Client::web('https://api.githubcopilot.com/mcp/')->withTimeout(30);
 ```
 
 <a name="named-clients"></a>
 ### Named Clients
 
-Instead of constructing a client each time you need it, you may register reusable, named clients with `ClientManager`. This is typically done during application bootstrap:
+Instead of constructing a client each time you need it, you may optionally register reusable, named clients with `ClientManager`. The `registerClient` method names an outgoing connection; it does not expose an MCP server or authorize a user. This is typically done during application bootstrap:
 
 ```php
 use Crustum\Mcp\Client;
@@ -2124,7 +2130,7 @@ use Crustum\Mcp\Client\ClientManager;
 
 ClientManager::getInstance()->registerClient(
     'github',
-    fn() => Client::web('https://mcp.example.com'),
+    fn() => Client::web('https://api.githubcopilot.com/mcp/'),
 );
 ```
 
@@ -2139,19 +2145,27 @@ Named clients are resolved once and automatically disconnected at the end of the
 <a name="client-authentication"></a>
 ### Client Authentication
 
+<a name="client-bearer-tokens"></a>
+#### Bearer Tokens
+
 To connect to a web MCP server that is protected by a bearer token, use the `withToken` method. You may pass a token string or a closure that lazily resolves the token:
 
 ```php
 use Crustum\Mcp\Client;
 
-$client = Client::web('https://mcp.example.com')->withToken($token);
+$client = Client::web('https://api.githubcopilot.com/mcp/')->withToken($token);
 
-$client = Client::web('https://mcp.example.com')->withToken(
+$client = Client::web('https://api.githubcopilot.com/mcp/')->withToken(
     fn(): string => (string)$identity->mcpToken(),
 );
 ```
 
-For servers protected by [OAuth 2.1](#oauth), configure the client using the `withOAuth` method:
+<a name="client-oauth"></a>
+#### Linking User Accounts With OAuth
+
+Imagine a chat application where users connect a project management service, then ask questions such as "Which of my tasks are overdue?" The external project management service exposes an OAuth-protected MCP server. Your application must redirect each user to the service's consent screen, exchange their approval for a token, and store that token for future tool calls.
+
+The plugin handles this account-linking flow using `withOAuth` and `Registrar::oAuthRoutesFor`. First, register a named client during application bootstrap. The OAuth client credentials identify your application to the service, while `withToken` supplies the connected user's saved access token when calling tools:
 
 ```php
 use Cake\Core\Configure;
@@ -2159,11 +2173,13 @@ use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\ClientManager;
 
 ClientManager::getInstance()->registerClient(
-    'github',
-    fn() => Client::web('https://mcp.example.com')->withOAuth(
-        clientId: Configure::read('Mcp.Clients.github.client_id'),
-        clientSecret: Configure::read('Mcp.Clients.github.client_secret'),
-    ),
+    'projects',
+    fn() => Client::web('https://projects.example.com/mcp')
+        ->withOAuth(
+            clientId: Configure::read('Projects.client_id'),
+            clientSecret: Configure::read('Projects.client_secret'),
+        )
+        ->withToken(fn(): string => (string)$identity->projects_token),
 );
 ```
 
@@ -2172,7 +2188,7 @@ ClientManager::getInstance()->registerClient(
 
 The authorization server must advertise support for the `S256` PKCE code challenge method in its authorization server metadata. The client will reject the authorization attempt if PKCE support is not advertised.
 
-Next, register the OAuth routes for the named client using `Registrar::oAuthRoutesFor`. The closure you provide receives the client name and resulting `TokenSet` after the authorization code has been exchanged for an access token:
+Next, register the account-linking routes. The callback receives the client name and resulting `TokenSet`, allowing you to save the token for the signed-in user:
 
 ```php
 use Cake\Http\Response;
@@ -2181,16 +2197,22 @@ use Crustum\Mcp\Server\Registrar;
 
 Registrar::getInstance()->oAuthRoutesFor(
     $routes,
-    'github',
+    'projects',
     function (string $client, TokenSet $token): Response {
-        // Persist $token->accessToken for the current user...
+        // Persist $token->accessToken for the signed-in user...
 
-        return (new Response())->withLocation('/dashboard');
+        return (new Response())->withLocation('/chat');
     },
+    ['auth'],
 );
 ```
 
-This registers three named routes: a connect route (`mcp.oauth.{client}.connect`) that redirects the user to the authorization server, a callback route (`mcp.oauth.{client}.callback`) that exchanges the authorization code and invokes your handler, and a public Client ID Metadata Document route (`mcp.oauth.{client}.client-metadata`). The connect and callback routes use the routes you pass to `oAuthRoutesFor` (apply your middleware via the `$middleware` argument); the metadata route stays public because the authorization server must be able to retrieve it.
+The `oAuthRoutesFor` method registers three named routes: a connect route (`mcp.oauth.{client}.connect`) that redirects the user to the authorization server, a callback route (`mcp.oauth.{client}.callback`) that exchanges the authorization code and invokes your handler, and a public Client ID Metadata Document route (`mcp.oauth.{client}.client-metadata`).
+
+The connect and callback routes use the middleware you pass via the `$middleware` argument; the account-linking example above passes `['auth']` to require a signed-in user. The metadata route stays public because the authorization server must be able to retrieve it.
+
+<a name="client-metadata"></a>
+#### Client Metadata
 
 The metadata document describes your application as a public OAuth client and uses your application's full base URL (`App.fullBaseUrl`) to generate the client ID and callback URL. Therefore, you should ensure the full base URL is set correctly in production. You may customize the metadata route and provide additional metadata using the `clientMetadataUri` and `clientMetadata` arguments:
 
@@ -2201,21 +2223,43 @@ use Crustum\Mcp\Server\Registrar;
 
 Registrar::getInstance()->oAuthRoutesFor(
     $routes,
-    'github',
+    'projects',
     function (string $client, TokenSet $token): Response {
-        // Persist $token->accessToken for the current user...
+        // Persist $token->accessToken for the signed-in user...
 
-        return (new Response())->withLocation('/dashboard');
+        return (new Response())->withLocation('/chat');
     },
-    clientMetadataUri: 'mcp/oauth/github/client-metadata.json',
+    clientMetadataUri: 'mcp/oauth/projects/client-metadata.json',
     clientMetadata: [
-        'client_name' => 'Acme Weather Dashboard',
+        'client_name' => 'Acme Dashboard',
         'logo_uri' => 'https://acme.com/logo.png',
     ],
 );
 ```
 
-To begin the authorization flow, redirect the user to the connect route for that client.
+Your "Connect Project Service" button should send the user to the connect route:
+
+```php
+use Cake\Http\Response;
+use Cake\Routing\Router;
+
+return (new Response())->withLocation(
+    Router::url(['_name' => 'mcp.oauth.projects.connect']),
+);
+```
+
+The service redirects the user back after approval, the plugin exchanges the authorization code, and your callback runs. On subsequent requests, the named client uses the saved token:
+
+```php
+use Crustum\Mcp\Client\ClientManager;
+
+$tools = ClientManager::getInstance()->client('projects')->tools();
+```
+
+Store tokens encrypted at rest and exclude them from entity serialization via `$_hidden`. If the service issues expiring tokens, also persist the refresh token and expiry (`TokenSet::$refreshToken`, `TokenSet::$expiresAt`) and renew them before making tool calls. For queued jobs, resolve credentials from an explicitly provided user instead of the request identity.
+
+> [!NOTE]
+> `Registrar::oAuthRoutesFor()` connects your users to an external service. In contrast, `Registrar::oauthRoutes()` allows external AI clients to authenticate to your own MCP servers. You do not need `oauthRoutes()` for the account-linking flow above.
 
 The connect route accepts an optional `return_to` query parameter that is restored after the OAuth callback when your handler returns `null`. Prefer returning an explicit redirect from the handler (as in the example above) so production apps do not rely on an unvalidated `return_to` value. See [Production Hardening](#production-hardening).
 
@@ -2246,8 +2290,9 @@ $tools = ClientManager::getInstance()->client('github')->tools(limit: 10);
 To invoke a tool, use the `callTool` method, passing the tool name and an array of arguments. The returned `ToolResult` instance exposes the tool response:
 
 ```php
-$result = ClientManager::getInstance()->client('github')->callTool('current-weather', [
-    'location' => 'New York',
+$result = ClientManager::getInstance()->client('github')->callTool('list_issues', [
+    'owner' => 'octocat',
+    'repo' => 'hello-world',
 ]);
 
 $result->text();
@@ -2261,8 +2306,9 @@ Alternatively, you may call a tool directly from a listed tool instance:
 ```php
 $tools = ClientManager::getInstance()->client('github')->tools();
 
-$result = $tools['current-weather']->call([
-    'location' => 'New York',
+$result = $tools['list_issues']->call([
+    'owner' => 'octocat',
+    'repo' => 'hello-world',
 ]);
 ```
 
@@ -2291,8 +2337,11 @@ $prompts = ClientManager::getInstance()->client('github')->prompts(limit: 10);
 To retrieve a prompt, use the `getPrompt` method:
 
 ```php
-$result = ClientManager::getInstance()->client('github')->getPrompt('describe-weather', [
-    'location' => 'New York',
+$result = ClientManager::getInstance()->client('github')->getPrompt('issue_to_fix_workflow', [
+    'owner' => 'octocat',
+    'repo' => 'hello-world',
+    'title' => 'Fix typo in README',
+    'description' => 'The installation section has a typo.',
 ]);
 
 $result->text();
@@ -2327,7 +2376,7 @@ $resources = ClientManager::getInstance()->client('github')->resources(limit: 10
 To read a resource, use the `readResource` method:
 
 ```php
-$result = ClientManager::getInstance()->client('github')->readResource('weather://guidelines');
+$result = ClientManager::getInstance()->client('github')->readResource('repo://octocat/hello-world/contents/README.md');
 
 $result->content();
 (string)$result;

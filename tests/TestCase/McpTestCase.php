@@ -10,6 +10,7 @@ use Crustum\Mcp\Server\Resource;
 use Crustum\Mcp\Server\ServerContext;
 use Crustum\Mcp\Support\ContainerRegistry;
 use Crustum\Mcp\Transport\JsonRpcResponse;
+use JMac\Testing\Integrations\PHPUnit\VerifiesDoubles;
 
 /**
  * Base test case for all Mcp plugin tests
@@ -17,6 +18,7 @@ use Crustum\Mcp\Transport\JsonRpcResponse;
 abstract class McpTestCase extends TestCase
 {
     use HttpClientTrait;
+    use VerifiesDoubles;
 
     /**
      * setUp method

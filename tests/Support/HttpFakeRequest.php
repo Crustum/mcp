@@ -19,28 +19,39 @@ class HttpFakeRequest implements ArrayAccess
     protected ?array $parsedData = null;
 
     /**
+     * Record an outbound HTTP request.
+     *
+     * @var array<string, mixed> Request options
+     */
+    public array $options = [];
+
+    /**
      * Create a recorded request wrapper.
      *
      * @param string $method HTTP method
      * @param string $url Request URL
      * @param array<string, array<int, string>> $headers Request headers
      * @param string $body Request body
+     * @param array<string, mixed> $options Request options
      */
     public function __construct(
         public string $method,
         public string $url,
         public array $headers,
         public string $body,
+        array $options = [],
     ) {
+        $this->options = $options;
     }
 
     /**
      * Build a recorded request from a PSR-7 request.
      *
      * @param \Psr\Http\Message\RequestInterface $request HTTP request
+     * @param array<string, mixed> $options Request options
      * @return self
      */
-    public static function from(RequestInterface $request): self
+    public static function from(RequestInterface $request, array $options = []): self
     {
         $body = (string)$request->getBody();
         $request->getBody()->rewind();
@@ -50,6 +61,7 @@ class HttpFakeRequest implements ArrayAccess
             url: (string)$request->getUri(),
             headers: $request->getHeaders(),
             body: $body,
+            options: $options,
         );
     }
 

@@ -185,6 +185,10 @@ class OAuthRegisterController extends AppController
             ->lengthBetween('name', [1, 255])
             ->requirePresence('redirect_uris')
             ->notEmptyArray('redirect_uris')
+            ->add('redirect_uris', 'maxRedirectUris', [
+                'rule' => static fn(mixed $value): bool => !is_array($value) || count($value) <= 10,
+                'message' => 'redirect_uris must contain no more than 10 URIs.',
+            ])
             ->add('redirect_uris', 'validRedirectUris', [
                 'rule' => function (mixed $value, array $context): bool|string {
                     if (!is_array($value) || $value === []) {
@@ -241,6 +245,10 @@ class OAuthRegisterController extends AppController
      */
     protected function validateRedirectUri(string $value, string $attribute = 'redirect_uris'): true|string
     {
+        if (strlen($value) > 1024) {
+            return "{$attribute} is not a valid URL.";
+        }
+
         if (!$this->isValidRedirectUri($value)) {
             return "{$attribute} is not a valid URL.";
         }
@@ -282,6 +290,10 @@ class OAuthRegisterController extends AppController
             return false;
         }
 
+        if (parse_url($value, PHP_URL_USER) !== null || parse_url($value, PHP_URL_PASS) !== null) {
+            return false;
+        }
+
         if (in_array($scheme, ['http', 'https'], true)) {
             return filter_var($value, FILTER_VALIDATE_URL) !== false;
         }
@@ -304,12 +316,13 @@ class OAuthRegisterController extends AppController
      */
     protected function isLocalhostUrl(string $url): bool
     {
-        return str_starts_with($url, 'http://localhost:')
-            || str_starts_with($url, 'http://localhost/')
-            || str_starts_with($url, 'http://127.0.0.1:')
-            || str_starts_with($url, 'http://127.0.0.1/')
-            || str_starts_with($url, 'http://[::1]:')
-            || str_starts_with($url, 'http://[::1]/');
+        $parts = parse_url($url);
+
+        if (!is_array($parts) || ($parts['scheme'] ?? null) !== 'http' || isset($parts['user']) || isset($parts['pass'])) {
+            return false;
+        }
+
+        return in_array($parts['host'] ?? null, ['localhost', '127.0.0.1', '[::1]'], true);
     }
 
     /**
@@ -424,7 +437,7 @@ class OAuthRegisterController extends AppController
     }
 
     /**
-     * Validate each redirect URI item, keyed per upstream (`redirect_uris.0 …`).
+     * Validate each redirect URI item, keyed per item (`redirect_uris.0 …`).
      *
      * @param array<string, mixed> $data Registration payload
      * @return array<string, string>

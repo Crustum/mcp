@@ -72,7 +72,7 @@ it('returns a valid list tools response', function (): void {
                         ],
                         'required' => ['name'],
                     ],
-                    'annotations' => (object) [],
+                    'annotations' => ['title' => 'Say Hi Tool'],
                     'title' => 'Say Hi Tool',
                 ],
             ],
@@ -393,7 +393,7 @@ it('includes meta in tool response when tool has meta property', function (): vo
                         ],
                         'required' => ['name'],
                     ],
-                    'annotations' => (object) [],
+                    'annotations' => ['title' => 'Say Hi With Meta Tool'],
                     '_meta' => [
                         'requestId' => 'abc-123',
                         'source' => 'tests/fixtures',

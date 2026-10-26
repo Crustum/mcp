@@ -61,7 +61,7 @@ it('retrieves nested input using dot notation', function (): void {
     ]);
 
     // Cake convention only: `{n}`/`{s}`/`{*}` matchers go through `Hash::extract()`
-    // (see `isWildcardPath()`). Laravel-style bare `*` is intentionally unsupported.
+    // (see `isWildcardPath()`). A bare `*` is intentionally unsupported.
     expect($request->get('user.name'))->toBe('Alice')
         ->and($request->get('user.missing', 'fallback'))->toBe('fallback')
         ->and($request->get('products.0.name'))->toBe('Widget')

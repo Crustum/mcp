@@ -265,6 +265,29 @@ it('rejects non-string redirect URIs before creating a client', function (): voi
         ->and(httpOAuthCount())->toBe(0);
 });
 
+it('rejects too many or too long redirect URIs before creating a client', function (array $redirectUris): void {
+    $this->post('/oauth/register', [
+        'redirect_uris' => $redirectUris,
+    ]);
+
+    $this->assertResponseCode(400);
+    $body = json_decode((string)$this->_response->getBody(), true);
+
+    expect($body['error'])->toBe('invalid_redirect_uri')
+        ->and(httpOAuthCount())->toBe(0);
+})->with([
+    'too many' => [array_map(fn(int $i): string => "https://example.com/callback/{$i}", range(1, 11))],
+    'too long' => [['https://example.com/' . str_repeat('a', 1005)]],
+]);
+
+it('accepts up to ten redirect URIs', function (): void {
+    $this->post('/oauth/register', [
+        'redirect_uris' => array_map(fn(int $i): string => "https://example.com/callback/{$i}", range(1, 10)),
+    ]);
+
+    $this->assertResponseCode(201);
+});
+
 it('keeps redirect errors ahead of metadata errors', function (): void {
     $this->post('/oauth/register', [
         'redirect_uris' => ['not-a-url'],
@@ -409,6 +432,26 @@ it('does not allow non-localhost URLs when localhost is in redirect_domains', fu
 
     $this->assertResponseCode(400);
 });
+
+it('rejects redirect URIs with userinfo', function (string $uri, array $domains): void {
+    httpOAuthConfig(['Mcp.redirect_domains' => $domains]);
+
+    $this->post('/oauth/register', [
+        'client_name' => 'Test Client',
+        'redirect_uris' => [$uri],
+    ]);
+
+    $this->assertResponseCode(400);
+    $body = json_decode((string)$this->_response->getBody(), true);
+
+    expect($body['error'])->toBe('invalid_redirect_uri');
+})->with([
+    'localhost port userinfo' => ['http://localhost:53123@evil.example/cb', ['https://example.com', 'http://localhost']],
+    '127.0.0.1 userinfo' => ['http://127.0.0.1:1@evil.example/cb', ['https://example.com', 'http://127.0.0.1']],
+    'localhost userinfo' => ['http://localhost@evil.example/cb', ['https://example.com', 'http://localhost']],
+    'https userinfo' => ['https://example.com@evil.example/cb', ['https://example.com']],
+    'user and password' => ['https://user:pass@example.com/cb', ['*']],
+]);
 
 it('does not allow https localhost URLs via localhost redirect domain', function (): void {
     httpOAuthConfig(['Mcp.redirect_domains' => ['https://example.com', 'http://localhost']]);

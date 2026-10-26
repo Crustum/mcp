@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Rector\CodeQuality\Rector\FuncCall\ArrayMergeOfNonArraysToSimpleArrayRector;
 use Rector\CodeQuality\Rector\Isset_\IssetOnPropertyObjectToPropertyExistsRector;
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\For_\RemoveDeadIfForeachForRector;
@@ -30,6 +31,7 @@ return RectorConfig::configure()
     ])
     ->withSkip([
         __DIR__ . '/tests/Conformance/router.php',
+        ArrayMergeOfNonArraysToSimpleArrayRector::class,
         ReadOnlyPropertyRector::class,
         ClassPropertyAssignToConstructorPromotionRector::class,
         AddClosureParamTypeForArrayMapRector::class,

@@ -6,6 +6,7 @@ namespace Crustum\Mcp\Server\Middleware;
 use Cake\Http\Response;
 use Crustum\Mcp\Enums\ErrorCode;
 use Crustum\Mcp\Enums\MetaKey;
+use Crustum\Mcp\Enums\ProtocolVersion;
 use Crustum\Mcp\Enums\RequestHeader;
 use Crustum\Mcp\Transport\HeaderValue;
 use Crustum\Mcp\Transport\JsonRpcRequest;
@@ -37,7 +38,7 @@ class ValidateMcpHeaders implements MiddlewareInterface
         );
 
         if ($message->isLegacy()) {
-            return $handler->handle($request);
+            return $this->unsupportedLegacyVersion($request, $body['id']) ?? $handler->handle($request);
         }
 
         $mismatch = $this->mismatch($request, RequestHeader::PROTOCOL_VERSION, $message->meta()[MetaKey::PROTOCOL_VERSION->value] ?? null, true)
@@ -58,6 +59,44 @@ class ValidateMcpHeaders implements MiddlewareInterface
             'error' => [
                 'code' => ErrorCode::HEADER_MISMATCH->value,
                 'message' => $mismatch,
+            ],
+        ]));
+
+        return $response;
+    }
+
+    /**
+     * Reject a legacy request carrying an unsupported protocol version header.
+     *
+     * Legacy clients never send the method and name headers, but they do send
+     * the negotiated protocol version after the handshake.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface $request Server request
+     * @param mixed $id JSON-RPC request identifier
+     * @return \Cake\Http\Response|null Error response, or null when the version is acceptable
+     */
+    protected function unsupportedLegacyVersion(ServerRequestInterface $request, mixed $id): ?Response
+    {
+        $version = $request->getHeaderLine(RequestHeader::PROTOCOL_VERSION->value);
+
+        if ($version === '' || in_array($version, ProtocolVersion::initializeSupported(), true)) {
+            return null;
+        }
+
+        $response = (new Response())
+            ->withStatus(400)
+            ->withHeader('Content-Type', 'application/json');
+
+        $response->getBody()->write((string)json_encode([
+            'jsonrpc' => '2.0',
+            'id' => $id,
+            'error' => [
+                'code' => ErrorCode::UNSUPPORTED_PROTOCOL_VERSION->value,
+                'message' => 'Unsupported protocol version',
+                'data' => [
+                    'supported' => ProtocolVersion::initializeSupported(),
+                    'requested' => $version,
+                ],
             ],
         ]));
 

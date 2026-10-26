@@ -2,11 +2,13 @@
 declare(strict_types=1);
 
 use Cake\Core\Container;
+use Cake\Http\MiddlewareQueue;
 use Cake\Log\Engine\FileLog;
 use Cake\Log\Log;
 use Crustum\Mcp\Client\ClientManager;
 use Crustum\Mcp\McpPlugin;
 use Crustum\Mcp\Server\ContainerInvoker;
+use Crustum\Mcp\Server\Middleware\AddAuthorizationFramingHeaders;
 use Crustum\Mcp\Server\Registrar;
 use Crustum\Mcp\Support\ContainerRegistry;
 use Crustum\Mcp\Support\McpContainerBindings;
@@ -97,6 +99,22 @@ it('sets the container registry from the application container', function (): vo
     $container = $app->getContainer();
 
     expect(ContainerRegistry::getInstance())->toBe($container);
+});
+
+it('registers the authorization framing middleware globally', function (): void {
+    $queue = (new McpPlugin())->middleware(new MiddlewareQueue());
+
+    $found = false;
+
+    foreach ($queue as $middleware) {
+        if ($middleware instanceof AddAuthorizationFramingHeaders) {
+            $found = true;
+
+            break;
+        }
+    }
+
+    expect($found)->toBeTrue();
 });
 
 it('loads the mcp sdk from resources js', function (): void {

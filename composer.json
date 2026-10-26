@@ -14,7 +14,6 @@
         "cakephp/cakephp": "^5.4",
         "crustum/tessera": "^1.0",
         "crustum/json-schema": "^1.0",
-        "crustum/plugin-manifest": "^1.0",
         "symfony/polyfill-php84": "^1.31",
         "symfony/process": "^7.4.5|^8.0.5"
     },
@@ -22,7 +21,8 @@
         "boundwize/structarmed": "^0.14",
         "cakephp/bake": "^3.0",
         "cakephp/cakephp-codesniffer": "^5.0",
-        "mockery/mockery": "^1.6.15",
+        "crustum/plugin-manifest": "^1.2",
+        "jasonmccreary/double": "1.0",
         "pestphp/pest": "^3.0",
         "pestphp/pest-plugin-type-coverage": "^3.0",
         "phpstan/phpstan": "^2.0",
@@ -73,6 +73,9 @@
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
+    "suggest": {
+        "crustum/plugin-manifest": "CakePHP plugin installer"
+    },
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,

@@ -55,4 +55,30 @@ class Str
     {
         return ucwords(str_replace(['-', '_'], ' ', Inflector::dasherize($value)));
     }
+
+    /**
+     * Determine whether a value matches any of the given wildcard patterns.
+     *
+     * @param array<int, string>|string $patterns Wildcard patterns (`*` matches anything)
+     * @param string $value Value to match
+     * @return bool
+     */
+    public static function is(array|string $patterns, string $value): bool
+    {
+        foreach ((array)$patterns as $pattern) {
+            if ($pattern === $value) {
+                return true;
+            }
+
+            if (str_contains($pattern, '*')) {
+                $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/s';
+
+                if (preg_match($regex, $value) === 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }

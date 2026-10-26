@@ -17,7 +17,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Dispatch a JSON-RPC message through the MCP HTTP stack.
  *
- * Cake equivalent of upstream `postJson('test-mcp', ...)`: runs the
+ * Cake equivalent of `postJson('test-mcp', ...)`: runs the
  * `ValidateMcpHeaders` middleware with a handler that invokes
  * `ServerController::handle()` for the registered web server.
  *

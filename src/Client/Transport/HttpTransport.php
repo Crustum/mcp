@@ -30,7 +30,7 @@ class HttpTransport implements Transport, UsesProtocol
     /**
      * Bearer token or token resolver.
      *
-     * @var \Closure(): string|string|null
+     * @var \Closure(): ?string|string|null
      */
     protected string|Closure|null $token = null;
 
@@ -125,7 +125,7 @@ class HttpTransport implements Transport, UsesProtocol
     /**
      * Configure a bearer token for authenticated requests.
      *
-     * @param \Closure(): string|string $token Bearer token or token resolver
+     * @param \Closure(): ?string|string $token Bearer token or token resolver
      * @return void
      */
     public function withToken(#[SensitiveParameter]
@@ -143,6 +143,16 @@ class HttpTransport implements Transport, UsesProtocol
     public function withHeaders(array $headers): void
     {
         $this->customHeaders = array_merge($this->customHeaders, $headers);
+    }
+
+    /**
+     * Get custom headers applied to outbound transport requests.
+     *
+     * @return array<string, string>
+     */
+    public function customHeaders(): array
+    {
+        return $this->customHeaders;
     }
 
     /**

@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Server;
 
+use Cake\Collection\CollectionInterface;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\ResponseFactory;
+use Crustum\Mcp\Server\Content\StructuredContentText;
 use Crustum\Mcp\Server\Contracts\Errable;
 use Crustum\Mcp\Server\Methods\Trait\InteractsWithResponsesTrait;
 use Crustum\Mcp\Support\ContainerRegistry;
@@ -19,6 +21,13 @@ use Generator;
 class ToolInvoker implements Errable
 {
     use InteractsWithResponsesTrait;
+
+    /**
+     * @param bool $mirrorStructuredContent Whether to keep the text mirror of structured content
+     */
+    public function __construct(protected bool $mirrorStructuredContent = true)
+    {
+    }
 
     /**
      * Invoke a tool handler and serialize its response.
@@ -61,9 +70,16 @@ class ToolInvoker implements Errable
     {
         return fn(ResponseFactory $factory): array => $factory->mergeStructuredContent(
             $factory->mergeMeta([
-                'content' => $factory->responses()->map(
-                    fn(Response $response): array => $response->content()->toTool($tool),
-                )->toList(),
+                'content' => $factory->responses()
+                    ->unless(
+                        $this->mirrorStructuredContent,
+                        fn(CollectionInterface $responses): CollectionInterface => $responses->reject(
+                            fn(Response $response): bool => $response->content() instanceof StructuredContentText,
+                        ),
+                    )
+                    ->map(
+                        fn(Response $response): array => $response->content()->toTool($tool),
+                    )->toList(),
                 'isError' => $factory->responses()->some(
                     fn(Response $response): bool => $response->isError(),
                 ),

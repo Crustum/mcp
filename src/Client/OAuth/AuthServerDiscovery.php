@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Client\OAuth;
 
+use Cake\Http\Client;
+use Cake\Http\Client\Exception\MissingResponseException;
+use Cake\Http\Client\Exception\NetworkException;
 use Cake\Utility\Hash;
 use Crustum\Mcp\Client\Exception\OAuthException;
 use Crustum\Mcp\Client\Trait\InteractsWithOAuthEndpointsTrait;
@@ -55,6 +58,117 @@ class AuthServerDiscovery
         $scopesSupported = array_values(array_map(strval(...), (array)($resourceMetadata['scopes_supported'] ?? [])));
 
         return new DiscoveryResult($serverMetadata, $scopesSupported);
+    }
+
+    /**
+     * Require a resource to advertise a caller supplied metadata URL.
+     *
+     * @param string $resourceUrl Protected resource URL
+     * @param string $resourceMetadataUrl Caller supplied metadata URL
+     * @param array<string, string> $headers Client headers forwarded to the probe
+     * @return void
+     */
+    public function requireAdvertised(string $resourceUrl, string $resourceMetadataUrl, array $headers = []): void
+    {
+        $this->requireFetchable($resourceMetadataUrl, $resourceUrl);
+
+        if ($resourceMetadataUrl === $this->wellKnown($resourceUrl, 'oauth-protected-resource')) {
+            return;
+        }
+
+        $this->requireFetchable($resourceUrl, $resourceUrl);
+
+        $response = $this->probe($resourceUrl, array_filter(
+            $headers,
+            static fn(string $name): bool => strcasecmp($name, 'Authorization') !== 0 && !str_starts_with(strtolower($name), 'mcp-'),
+            ARRAY_FILTER_USE_KEY,
+        ));
+
+        $advertised = WwwAuthenticateChallenge::parse($response->getHeaderLine('WWW-Authenticate'))->resourceMetadataUrl;
+
+        if (!in_array($response->getStatusCode(), [401, 403], true) || $advertised === null || !hash_equals($advertised, $resourceMetadataUrl)) {
+            throw new OAuthException("The protected resource metadata URL [{$resourceMetadataUrl}] was not advertised by the resource [{$resourceUrl}].");
+        }
+    }
+
+    /**
+     * Probe a resource with a ping request, following redirects manually.
+     *
+     * @param string $resourceUrl Protected resource URL
+     * @param array<string, string> $headers Headers forwarded to the probe
+     * @return \Cake\Http\Client\Response
+     */
+    protected function probe(string $resourceUrl, array $headers): Client\Response
+    {
+        $body = (string)json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'ping',
+        ]);
+
+        $url = $resourceUrl;
+        $redirects = 0;
+
+        while (true) {
+            try {
+                $response = $this->oAuthHttpClient()->post($url, $body, [
+                    'headers' => array_merge([
+                        'Accept' => 'application/json, text/event-stream',
+                        'Content-Type' => 'application/json',
+                    ], $headers),
+                    'redirect' => 0,
+                ]);
+            } catch (NetworkException | MissingResponseException $exception) {
+                throw new OAuthException("Unable to reach the resource [{$resourceUrl}] to verify its protected resource metadata.", 0, $exception);
+            }
+
+            if (!$response->isRedirect()) {
+                return $response;
+            }
+
+            if ($redirects === 5) {
+                throw new OAuthException("Unable to reach the resource [{$resourceUrl}] to verify its protected resource metadata.");
+            }
+
+            $redirects++;
+
+            $url = $this->resolveRedirect($response->getHeaderLine('Location'), $url, $resourceUrl);
+        }
+    }
+
+    /**
+     * Resolve a redirect location against the probed URL.
+     *
+     * @param string $location Redirect location header value
+     * @param string $base Probed URL the redirect was received from
+     * @param string $resourceUrl Protected resource URL
+     * @return string
+     */
+    protected function resolveRedirect(string $location, string $base, string $resourceUrl): string
+    {
+        if ($location === '') {
+            throw new OAuthException("Unable to reach the resource [{$resourceUrl}] to verify its protected resource metadata.");
+        }
+
+        if (str_starts_with($location, '//')) {
+            $next = parse_url($base, PHP_URL_SCHEME) . ':' . $location;
+        } elseif (preg_match('#^[a-zA-Z][a-zA-Z0-9+.-]*://#', $location) === 1) {
+            $next = $location;
+        } else {
+            $next = rtrim($this->origin($base), '/') . '/' . ltrim($location, '/');
+        }
+
+        $parts = parse_url($next);
+
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            throw new OAuthException("Unable to reach the resource [{$resourceUrl}] to verify its protected resource metadata.");
+        }
+
+        $next = strtolower((string)$parts['scheme']) . substr($next, strlen((string)$parts['scheme']));
+
+        $this->requireFetchable($next, $resourceUrl);
+
+        return $next;
     }
 
     /**
@@ -159,7 +273,7 @@ class AuthServerDiscovery
 
         $origin = $this->originFromParts($parts);
 
-        $path = $parts['path'] ?? '';
+        $path = rtrim($parts['path'] ?? '', '/');
 
         if ($path === '') {
             return [

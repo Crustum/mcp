@@ -248,7 +248,7 @@ abstract class Server
                 throw new JsonRpcException('Parse error: Invalid JSON was received by the server.', ErrorCode::PARSE_ERROR->value);
             }
 
-            $request = isset($jsonRequest['id'])
+            $request = is_array($jsonRequest) && array_key_exists('id', $jsonRequest)
                 ? JsonRpcRequest::from($jsonRequest)
                 : JsonRpcNotification::from($jsonRequest);
 
@@ -301,11 +301,11 @@ abstract class Server
             supportedProtocolVersions: $this->supportedProtocolVersion ?: ProtocolVersion::serverSupported(),
             serverCapabilities: $this->resolvedCapabilities(),
             implementation: new Implementation(
-                name: $name !== null ? $name->value : $this->name,
-                version: $version !== null ? $version->value : $this->version,
+                name: $name instanceof Name ? $name->value : $this->name,
+                version: $version instanceof Version ? $version->value : $this->version,
                 icons: $this->resolvedIcons(),
             ),
-            instructions: $instructions !== null ? $instructions->value : $this->instructions,
+            instructions: $instructions instanceof Instructions ? $instructions->value : $this->instructions,
             maxPaginationLength: $this->maxPaginationLength,
             defaultPaginationLength: $this->defaultPaginationLength,
             tools: $this->tools,

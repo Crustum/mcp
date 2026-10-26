@@ -49,10 +49,12 @@ class StdioTransport implements Transport
      *
      * @param string $command Subprocess command
      * @param array<int, string> $args Subprocess arguments
+     * @param array<string, string> $env Subprocess environment variables
      */
     public function __construct(
         protected string $command,
         protected array $args = [],
+        protected array $env = [],
     ) {
     }
 
@@ -66,7 +68,7 @@ class StdioTransport implements Transport
         }
 
         $this->input = new InputStream();
-        $this->process = new Process([$this->command, ...$this->args]);
+        $this->process = new Process([$this->command, ...$this->args], env: $this->env);
         $this->process->setInput($this->input);
         $this->process->setTimeout(null);
 
@@ -110,6 +112,7 @@ class StdioTransport implements Transport
             'driver' => 'stdio',
             'command' => $this->command,
             'args' => $this->args,
+            'env' => $this->env,
             'timeoutSeconds' => $this->timeoutSeconds,
         ];
     }

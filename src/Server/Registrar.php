@@ -266,9 +266,10 @@ class Registrar
      *
      * @param \Cake\Routing\RouteBuilder $routes Route builder instance
      * @param string $oauthPrefix Prefix for the DCR endpoint (default oauth)
+     * @param bool $registration Whether to register the dynamic client registration route
      * @return void
      */
-    public function oauthRoutes(RouteBuilder $routes, string $oauthPrefix = 'oauth'): void
+    public function oauthRoutes(RouteBuilder $routes, string $oauthPrefix = 'oauth', bool $registration = true): void
     {
         static::ensureMcpScope();
 
@@ -331,7 +332,7 @@ class Registrar
             );
         }
 
-        if (!array_key_exists('mcp.oauth.register', $named)) {
+        if ($registration && !array_key_exists('mcp.oauth.register', $named)) {
             $routes->connect(
                 '/' . trim($oauthPrefix, '/') . '/register',
                 $plugin + [
@@ -356,16 +357,21 @@ class Registrar
             $issuer = ServerUrl::current() !== '' ? ServerUrl::current() : Router::url('/', true);
         }
 
-        return [
+        $registerRoute = Router::getRouteCollection()->named()['mcp.oauth.register'] ?? null;
+
+        return array_filter([
             'issuer' => $issuer,
             'authorization_endpoint' => static::authorizationEndpoint(),
             'token_endpoint' => static::tokenEndpoint(),
-            'registration_endpoint' => ServerUrl::forPath(trim($oauthPrefix, '/') . '/register'),
+            'registration_endpoint' => $registerRoute === null
+                ? null
+                : ServerUrl::forPath(ltrim($registerRoute->template, '/')),
             'response_types_supported' => ['code'],
             'code_challenge_methods_supported' => ['S256'],
             'scopes_supported' => [self::OAUTH_SCOPE],
             'grant_types_supported' => ['authorization_code', 'refresh_token'],
-        ];
+            'token_endpoint_auth_methods_supported' => ['none', 'client_secret_basic', 'client_secret_post'],
+        ], fn(mixed $value): bool => $value !== null);
     }
 
     /**

@@ -14,7 +14,7 @@ use Crustum\Mcp\Test\Fixtures\ThrowingMethodHandler;
 use Crustum\Mcp\Transport\JsonRpcRequest;
 use Crustum\Mcp\Transport\JsonRpcResponse;
 
-it('answers the legacy initialize handshake', function (): void {
+it('answers the legacy initialize handshake', function (string $version): void {
     $transport = new ArrayTransport();
     $server = new ExampleServer($transport);
 
@@ -24,7 +24,7 @@ it('answers the legacy initialize handshake', function (): void {
         'jsonrpc' => '2.0',
         'id' => 456,
         'method' => 'initialize',
-        'params' => ['protocolVersion' => '2025-06-18'],
+        'params' => ['protocolVersion' => $version],
     ]);
 
     ($transport->handler)($payload);
@@ -32,10 +32,29 @@ it('answers the legacy initialize handshake', function (): void {
     $response = json_decode((string)$transport->sent[0], true);
 
     expect($response['id'])->toBe(456)
-        ->and($response['result']['protocolVersion'])->toBe('2025-06-18')
+        ->and($response['result']['protocolVersion'])->toBe($version)
         ->and($response['result']['serverInfo']['name'])->toBe('CakePHP MCP Server')
         ->and($response['result'])->toHaveKeys(['capabilities', 'instructions']);
-});
+
+    ($transport->handler)(json_encode(['jsonrpc' => '2.0', 'method' => 'notifications/initialized']));
+
+    expect($transport->sent)->toHaveCount(1);
+
+    ($transport->handler)(json_encode(['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/list']));
+
+    $response = json_decode((string)$transport->sent[1], true);
+
+    expect(array_column($response['result']['tools'], 'name'))->toContain('say-hi-tool');
+
+    $message = callToolMessage();
+    unset($message['params']['_meta']);
+
+    ($transport->handler)(json_encode($message));
+
+    $response = json_decode((string)$transport->sent[2], true);
+
+    expect($response['result']['content'][0]['text'])->toBe('Hello, John Doe!');
+})->with(['2025-11-25', '2025-06-18', '2025-03-26']);
 
 it('falls back to the latest legacy version for an unknown initialize version', function (): void {
     $transport = new ArrayTransport();
@@ -268,6 +287,29 @@ it('can handle a notification message', function (): void {
     ($transport->handler)($payload);
 
     expect($transport->sent)->toHaveCount(0);
+});
+
+it('rejects a request with a null id instead of treating it as a notification', function (): void {
+    $transport = new ArrayTransport();
+    $server = new ExampleServer($transport);
+
+    $server->start();
+
+    $payload = json_encode([
+        'jsonrpc' => '2.0',
+        'id' => null,
+        'method' => 'tools/list',
+    ]);
+
+    ($transport->handler)($payload);
+
+    expect($transport->sent)->toHaveCount(1);
+
+    $response = json_decode((string)$transport->sent[0], true);
+
+    expect($response['error']['code'])->toBe(-32600)
+        ->and($response['error']['message'])->toBe('Invalid Request: The [id] member must be a string, number.')
+        ->and($response)->not->toHaveKey('result');
 });
 
 it('can handle an unknown method', function (): void {

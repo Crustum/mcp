@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 
-// use Illuminate\Support\Facades\Http;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
 use Crustum\Mcp\Client\OAuth\WwwAuthenticateChallenge;
 use Crustum\Mcp\Client\Transport\HttpTransport;

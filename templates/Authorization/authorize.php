@@ -45,6 +45,12 @@ if (is_object($user)) {
     <p>
         <?= h(__('{0} is requesting access to your account.', $client->name ?? '')) ?>
     </p>
+    <?php $redirectUri = $this->request->getQuery('redirect_uri') ?? $client->redirect_uris[0] ?? null; ?>
+    <?php if (!empty($redirectUri)) : ?>
+    <p>
+        <?= h(__('You will be redirected to {0}', $redirectUri)) ?>
+    </p>
+    <?php endif; ?>
     <?php if (!empty($clientUri)) : ?>
     <p>
         <a href="<?= h($clientUri) ?>" target="_blank" rel="noopener noreferrer"><?= h($clientUri) ?></a>

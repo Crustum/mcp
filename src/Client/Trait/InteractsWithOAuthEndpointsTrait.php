@@ -13,6 +13,11 @@ use Crustum\Mcp\Client\Exception\OAuthException;
 trait InteractsWithOAuthEndpointsTrait
 {
     /**
+     * Maximum OAuth endpoint response body size in bytes.
+     */
+    protected int $maxOAuthResponseSize = 1_048_576;
+
+    /**
      * Create a configured HTTP client for OAuth endpoint requests.
      *
      * @return \Cake\Http\Client
@@ -28,6 +33,23 @@ trait InteractsWithOAuthEndpointsTrait
     }
 
     /**
+     * Restrict OAuth requests to HTTP and HTTPS with a capped response size.
+     *
+     * @return array<int, int>
+     */
+    protected function oAuthCurlOptions(): array
+    {
+        if (!defined('CURLOPT_PROTOCOLS')) {
+            return [];
+        }
+
+        return [
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_MAXFILESIZE => $this->maxOAuthResponseSize,
+        ];
+    }
+
+    /**
      * Perform a GET request against an OAuth endpoint.
      *
      * @param string $url Request URL
@@ -38,6 +60,7 @@ trait InteractsWithOAuthEndpointsTrait
         try {
             return $this->oAuthHttpClient()->get($url, [], [
                 'redirect' => 0,
+                'curl' => $this->oAuthCurlOptions(),
             ]);
         } catch (NetworkException $networkException) {
             throw new OAuthException(
@@ -61,6 +84,7 @@ trait InteractsWithOAuthEndpointsTrait
             return $this->oAuthHttpClient()->post($url, $data, [
                 'type' => 'json',
                 'redirect' => 0,
+                'curl' => $this->oAuthCurlOptions(),
             ]);
         } catch (NetworkException $networkException) {
             throw new OAuthException(
@@ -84,6 +108,7 @@ trait InteractsWithOAuthEndpointsTrait
         try {
             return $this->oAuthHttpClient()->post($url, $data, array_merge([
                 'redirect' => 0,
+                'curl' => $this->oAuthCurlOptions(),
             ], $options));
         } catch (NetworkException $networkException) {
             throw new OAuthException(

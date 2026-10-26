@@ -299,11 +299,84 @@ it('registers dcr under a custom oauth prefix', function (): void {
     expect(mcpNamedRoute('mcp.oauth.register')?->template)->toBe('/custom-oauth/register');
 });
 
+it('does not register the client registration route when registration is disabled', function (): void {
+    $registrar = new Registrar();
+    $routes = mcpRegistrarRouteBuilder([]);
+
+    $registrar->oauthRoutes($routes, registration: false);
+
+    expect(mcpNamedRoute('mcp.oauth.protected-resource'))->not->toBeNull()
+        ->and(mcpNamedRoute('mcp.oauth.register'))->toBeNull();
+});
+
+it('omits the registration endpoint from the metadata when registration is disabled', function (): void {
+    Configure::write('Mcp.authorization_server', 'https://auth.example.com');
+    Configure::write('Mcp.oauth.authorization_endpoint', 'https://auth.example.com/oauth/authorize');
+    Configure::write('Mcp.oauth.token_endpoint', 'https://auth.example.com/oauth/token');
+    Configure::write('App.fullBaseUrl', 'https://mcp.example.com');
+
+    $registrar = new Registrar();
+    $routes = mcpRegistrarRouteBuilder([]);
+
+    $registrar->oauthRoutes($routes, registration: false);
+
+    $metadata = Registrar::authorizationServerMetadata('oauth');
+
+    expect($metadata)->not->toHaveKey('registration_endpoint')
+        ->and($metadata)->toMatchArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/oauth/authorize',
+            'token_endpoint' => 'https://auth.example.com/oauth/token',
+            'scopes_supported' => [Registrar::OAUTH_SCOPE],
+        ]);
+});
+
+it('advertises the registration endpoint under a custom prefix', function (): void {
+    Configure::write('Mcp.authorization_server', 'https://auth.example.com');
+    Configure::write('Mcp.oauth.authorization_endpoint', 'https://auth.example.com/oauth/authorize');
+    Configure::write('Mcp.oauth.token_endpoint', 'https://auth.example.com/oauth/token');
+    Configure::write('App.fullBaseUrl', 'https://mcp.example.com');
+
+    $registrar = new Registrar();
+    $routes = mcpRegistrarRouteBuilder([]);
+
+    $registrar->oauthRoutes($routes, 'custom-oauth');
+
+    expect(Registrar::authorizationServerMetadata('custom-oauth')['registration_endpoint'])
+        ->toBe('https://mcp.example.com/custom-oauth/register');
+});
+
+it('advertises a custom registration route when registration is disabled', function (): void {
+    Configure::write('Mcp.authorization_server', 'https://auth.example.com');
+    Configure::write('Mcp.oauth.authorization_endpoint', 'https://auth.example.com/oauth/authorize');
+    Configure::write('Mcp.oauth.token_endpoint', 'https://auth.example.com/oauth/token');
+    Configure::write('App.fullBaseUrl', 'https://mcp.example.com');
+
+    $registrar = new Registrar();
+    $routes = mcpRegistrarRouteBuilder([]);
+
+    $registrar->oauthRoutes($routes, registration: false);
+
+    $routes->connect(
+        '/clients/register',
+        ['plugin' => 'Crustum/Mcp', 'controller' => 'OAuthRegister', 'action' => 'register'],
+        ['_name' => 'mcp.oauth.register', '_method' => 'POST'],
+    );
+
+    expect(Registrar::authorizationServerMetadata('oauth')['registration_endpoint'])
+        ->toBe('https://mcp.example.com/clients/register');
+});
+
 it('builds authorization server metadata with mcp scope', function (): void {
     Configure::write('Mcp.authorization_server', 'https://auth.example.com');
     Configure::write('Mcp.oauth.authorization_endpoint', 'https://auth.example.com/oauth/authorize');
     Configure::write('Mcp.oauth.token_endpoint', 'https://auth.example.com/oauth/token');
     Configure::write('App.fullBaseUrl', 'https://mcp.example.com');
+
+    $registrar = new Registrar();
+    $routes = mcpRegistrarRouteBuilder([]);
+
+    $registrar->oauthRoutes($routes);
 
     $metadata = Registrar::authorizationServerMetadata('oauth');
 
@@ -316,6 +389,7 @@ it('builds authorization server metadata with mcp scope', function (): void {
         'code_challenge_methods_supported' => ['S256'],
         'scopes_supported' => [Registrar::OAUTH_SCOPE],
         'grant_types_supported' => ['authorization_code', 'refresh_token'],
+        'token_endpoint_auth_methods_supported' => ['none', 'client_secret_basic', 'client_secret_post'],
     ]);
 });
 

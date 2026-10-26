@@ -38,7 +38,7 @@ class WebClient extends Client
     /**
      * Configure a bearer token for authenticated requests.
      *
-     * @param \Closure(): string|string $token Bearer token or token resolver
+     * @param \Closure(): ?string|string $token Bearer token or token resolver
      * @return static
      */
     public function withToken(#[SensitiveParameter]
@@ -122,6 +122,7 @@ class WebClient extends Client
             clientIdMetadataUrl: $this->name === null
                 ? null
                 : $this->canonicalRouteUrl("mcp.oauth.{$this->name}.client-metadata"),
+            resourceHeaders: $this->httpTransport->customHeaders(),
         );
     }
 

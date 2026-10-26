@@ -10,6 +10,7 @@ use Crustum\Mcp\Server\Content\Blob;
 use Crustum\Mcp\Server\Content\Image;
 use Crustum\Mcp\Server\Content\Notification;
 use Crustum\Mcp\Server\Content\ResourceLink as ResourceLinkContent;
+use Crustum\Mcp\Server\Content\StructuredContentText;
 use Crustum\Mcp\Server\Content\Text;
 use Crustum\Mcp\Server\Contracts\Content;
 use Crustum\Mcp\Server\Resource;
@@ -190,7 +191,7 @@ class Response
             );
         }
 
-        return (new ResponseFactory(static::text($json)))->withStructuredContent($response);
+        return (new ResponseFactory(new static(new StructuredContentText($json))))->withStructuredContent($response);
     }
 
     /**

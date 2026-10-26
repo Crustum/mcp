@@ -244,3 +244,57 @@ it('answers an internal error with a 500', function (): void {
 
     expect($response->getStatusCode())->toBe(200);
 });
+
+it('serves tools after the legacy initialize handshake', function (string $version, bool $withHeader): void {
+    $initialize = [...initializeMessage(), 'params' => [
+        'protocolVersion' => $version,
+        'capabilities' => (object)[],
+        'clientInfo' => ['name' => 'test-client', 'version' => '1.0.0'],
+    ]];
+
+    $response = validateHeadersPost($initialize);
+
+    expect($response->getStatusCode())->toBe(200);
+    expect(json_decode((string)$response->getBody(), true)['result']['protocolVersion'])->toBe($version);
+
+    $headers = $withHeader ? ['MCP-Protocol-Version' => $version] : [];
+
+    $response = validateHeadersPost(['jsonrpc' => '2.0', 'method' => 'notifications/initialized'], $headers);
+
+    expect($response->getStatusCode())->toBe(202);
+
+    $response = validateHeadersPost(['jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/list', 'params' => []], $headers);
+
+    expect($response->getStatusCode())->toBe(200);
+    expect(array_column(json_decode((string)$response->getBody(), true)['result']['tools'], 'name'))->toContain('say-hi-tool');
+
+    $message = callToolMessage();
+    unset($message['params']['_meta']);
+
+    $response = validateHeadersPost($message, $headers);
+
+    expect($response->getStatusCode())->toBe(200);
+    expect(json_decode((string)$response->getBody(), true)['result']['content'][0]['text'])->toBe('Hello, John Doe!');
+})->with(['2025-11-25', '2025-06-18', '2025-03-26'])->with([true, false]);
+
+it('answers a legacy request carrying an unsupported protocol version header with a 400', function (): void {
+    $message = ['jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/list', 'params' => []];
+
+    $response = validateHeadersPost($message, [
+        'MCP-Protocol-Version' => '1900-01-01',
+    ]);
+
+    expect($response->getStatusCode())->toBe(400);
+    expect(json_decode((string)$response->getBody(), true))->toEqual([
+        'jsonrpc' => '2.0',
+        'id' => 3,
+        'error' => [
+            'code' => -32022,
+            'message' => 'Unsupported protocol version',
+            'data' => [
+                'supported' => ['2025-11-25', '2025-06-18', '2025-03-26'],
+                'requested' => '1900-01-01',
+            ],
+        ],
+    ]);
+});

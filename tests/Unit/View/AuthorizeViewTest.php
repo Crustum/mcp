@@ -7,7 +7,7 @@ use Cake\View\View;
 use Crustum\Tessera\Model\Entity\Client;
 use Crustum\Tessera\Scope;
 
-function renderMcpAuthorizeTemplate(Client $client, object|array $user, array $scopes): string
+function renderMcpAuthorizeTemplate(Client $client, object|array $user, array $scopes, array $query = []): string
 {
     Router::resetRoutes();
     Router::createRouteBuilder('/')->post(
@@ -18,6 +18,7 @@ function renderMcpAuthorizeTemplate(Client $client, object|array $user, array $s
 
     $view = new View(new ServerRequest([
         'environment' => ['REQUEST_METHOD' => 'GET'],
+        'query' => $query,
     ]));
     $view->setPlugin('Crustum/Mcp');
     $view->setTemplatePath('Authorization');
@@ -64,4 +65,37 @@ it('renders the shield fallback when metadata is missing', function (): void {
     expect($html)->toContain('<svg')
         ->and($html)->not->toContain('<img')
         ->and($html)->toContain('user@example.com');
+});
+
+it('shows the requested redirect uri', function (): void {
+    $html = renderMcpAuthorizeTemplate(
+        new Client(['name' => 'Example']),
+        ['email' => 'user@example.com'],
+        [],
+        ['redirect_uri' => 'https://app.example.com/callback'],
+    );
+
+    expect($html)->toContain('You will be redirected to')
+        ->and($html)->toContain('app.example.com')
+        ->and($html)->toContain('https://app.example.com/callback');
+});
+
+it('falls back to the registered redirect uri', function (): void {
+    $client = new Client(['name' => 'Example']);
+    $client->set('redirect_uris', ['https://registered.example.com/cb']);
+
+    $html = renderMcpAuthorizeTemplate($client, ['email' => 'user@example.com'], []);
+
+    expect($html)->toContain('registered.example.com');
+});
+
+it('escapes the redirect uri', function (): void {
+    $html = renderMcpAuthorizeTemplate(
+        new Client(['name' => 'Example']),
+        ['email' => 'user@example.com'],
+        [],
+        ['redirect_uri' => 'https://x.test/<script>alert(1)</script>'],
+    );
+
+    expect($html)->not->toContain('<script>alert(1)</script>');
 });

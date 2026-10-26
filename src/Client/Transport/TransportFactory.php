@@ -37,12 +37,14 @@ class TransportFactory
     {
         $command = Hash::get($recipe, 'command');
         $args = Hash::get($recipe, 'args', []);
+        $env = Hash::get($recipe, 'env', []);
 
-        if (!is_string($command) || !is_array($args)) {
+        if (!is_string($command) || !is_array($args) || !is_array($env)) {
             throw new ClientException('Invalid stdio transport recipe.');
         }
 
-        $transport = new StdioTransport($command, array_values($args));
+        /** @var array<string, string> $env */
+        $transport = new StdioTransport($command, array_values($args), $env);
 
         self::applyTimeout($transport, $recipe);
 

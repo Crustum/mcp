@@ -15,7 +15,7 @@ use Psr\Http\Message\RequestInterface;
 class HttpFake
 {
     /**
-     * Recorded outbound HTTP requests.
+     * Recorded outbound HTTP requests with their options.
      *
      * @var array<int, \Crustum\Mcp\Test\Support\HttpFakeRequest>
      */
@@ -93,8 +93,8 @@ class HttpFake
         static::register('*', $response);
 
         Client::addMockResponse('DELETE', '*', static::response(), [
-            'match' => static function (RequestInterface $request) use ($message): bool {
-                static::record($request);
+            'match' => static function (RequestInterface $request, array $options = []) use ($message): bool {
+                static::record($request, $options);
 
                 throw new NetworkException($message, $request);
             },
@@ -113,8 +113,8 @@ class HttpFake
 
         foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as $method) {
             Client::addMockResponse($method, '*', static::response(), [
-                'match' => static function (RequestInterface $request) use ($message): bool {
-                    static::record($request);
+                'match' => static function (RequestInterface $request, array $options = []) use ($message): bool {
+                    static::record($request, $options);
 
                     throw new NetworkException($message, $request);
                 },
@@ -228,12 +228,12 @@ class HttpFake
     {
         foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as $method) {
             Client::addMockResponse($method, $url, $response, [
-                'match' => static function (RequestInterface $request) use ($method): bool {
+                'match' => static function (RequestInterface $request, array $options = []) use ($method): bool {
                     if ($request->getMethod() !== $method) {
                         return false;
                     }
 
-                    static::record($request);
+                    static::record($request, $options);
 
                     return true;
                 },
@@ -245,11 +245,12 @@ class HttpFake
      * Record an outbound HTTP request.
      *
      * @param \Psr\Http\Message\RequestInterface $request HTTP request
+     * @param array<string, mixed> $options Request options
      * @return void
      */
-    public static function record(RequestInterface $request): void
+    public static function record(RequestInterface $request, array $options = []): void
     {
-        static::$recorded[] = HttpFakeRequest::from($request);
+        static::$recorded[] = HttpFakeRequest::from($request, $options);
     }
 
     /**

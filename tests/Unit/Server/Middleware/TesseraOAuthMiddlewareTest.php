@@ -9,6 +9,7 @@ use Crustum\Mcp\Server\Registrar;
 use Crustum\Tessera\Contracts\OAuthenticatable;
 use Crustum\Tessera\Contracts\ScopeAuthorizable;
 use Crustum\Tessera\PersonalAccessTokenResult;
+use JMac\Testing\Double;
 use League\OAuth2\Server\Exception\OAuthServerException;
 use League\OAuth2\Server\ResourceServer;
 use Psr\Http\Message\ResponseInterface;
@@ -102,14 +103,12 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     Configure::write('Tessera.userIdType', 'integer');
-    Mockery::close();
 });
 
 it('returns 401 when the bearer token is invalid', function (): void {
-    $server = Mockery::mock(ResourceServer::class);
-    $server->shouldReceive('validateAuthenticatedRequest')
-        ->once()
-        ->andThrow(OAuthServerException::accessDenied());
+    $server = Double::for(ResourceServer::class);
+    $server->expects('validateAuthenticatedRequest')
+        ->throws(OAuthServerException::accessDenied());
 
     $middleware = new TesseraOAuthMiddleware($server);
     $response = $middleware->process(new ServerRequest(), tesseraOAuthHandler());
@@ -122,10 +121,9 @@ it('returns 401 when the bearer token is invalid', function (): void {
 });
 
 it('returns 403 when the token is missing mcp:use', function (): void {
-    $server = Mockery::mock(ResourceServer::class);
-    $server->shouldReceive('validateAuthenticatedRequest')
-        ->once()
-        ->andReturnUsing(static fn(ServerRequestInterface $request): ServerRequestInterface => $request
+    $server = Double::for(ResourceServer::class);
+    $server->expects('validateAuthenticatedRequest')
+        ->resolves(static fn(ServerRequestInterface $request): ServerRequestInterface => $request
             ->withAttribute('oauth_access_token_id', 'tok-1')
             ->withAttribute('oauth_client_id', 'client-1')
             ->withAttribute('oauth_user_id', 'user-1')
@@ -145,10 +143,9 @@ it('attaches the token and identity when the bearer token is valid', function ()
     $user = tesseraOAuthUser();
     $captured = null;
 
-    $server = Mockery::mock(ResourceServer::class);
-    $server->shouldReceive('validateAuthenticatedRequest')
-        ->once()
-        ->andReturnUsing(static fn(ServerRequestInterface $request): ServerRequestInterface => $request
+    $server = Double::for(ResourceServer::class);
+    $server->expects('validateAuthenticatedRequest')
+        ->resolves(static fn(ServerRequestInterface $request): ServerRequestInterface => $request
             ->withAttribute('oauth_access_token_id', 'tok-1')
             ->withAttribute('oauth_client_id', 'client-1')
             ->withAttribute('oauth_user_id', 'user-1')
@@ -176,10 +173,9 @@ it('attaches the token and identity when the bearer token is valid', function ()
 it('allows a valid token without a resolvable user', function (): void {
     $captured = null;
 
-    $server = Mockery::mock(ResourceServer::class);
-    $server->shouldReceive('validateAuthenticatedRequest')
-        ->once()
-        ->andReturnUsing(static fn(ServerRequestInterface $request): ServerRequestInterface => $request
+    $server = Double::for(ResourceServer::class);
+    $server->expects('validateAuthenticatedRequest')
+        ->resolves(static fn(ServerRequestInterface $request): ServerRequestInterface => $request
             ->withAttribute('oauth_access_token_id', 'tok-1')
             ->withAttribute('oauth_client_id', 'client-1')
             ->withAttribute('oauth_user_id', null)
@@ -212,10 +208,9 @@ it('applyIdentity prefers mcp.oauth.identity over Cake identity', function (): v
 });
 
 it('returns a generic 401 when an unexpected throwable occurs', function (): void {
-    $server = Mockery::mock(ResourceServer::class);
-    $server->shouldReceive('validateAuthenticatedRequest')
-        ->once()
-        ->andThrow(new RuntimeException('ResourceServer binding leaked'));
+    $server = Double::for(ResourceServer::class);
+    $server->expects('validateAuthenticatedRequest')
+        ->throws(new RuntimeException('ResourceServer binding leaked'));
 
     $middleware = new TesseraOAuthMiddleware($server);
     $response = $middleware->process(new ServerRequest(), tesseraOAuthHandler());

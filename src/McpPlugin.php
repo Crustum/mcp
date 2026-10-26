@@ -8,6 +8,7 @@ use Cake\Core\BasePlugin;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Core\PluginApplicationInterface;
+use Cake\Http\MiddlewareQueue;
 use Cake\Log\Engine\FileLog;
 use Cake\Log\Log;
 use Cake\Routing\RouteBuilder;
@@ -20,13 +21,12 @@ use Crustum\Mcp\Command\McpServerCommand;
 use Crustum\Mcp\Command\McpStartCommand;
 use Crustum\Mcp\Command\McpToolCommand;
 use Crustum\Mcp\Server\ContainerInvoker;
+use Crustum\Mcp\Server\Middleware\AddAuthorizationFramingHeaders;
 use Crustum\Mcp\Server\Registrar;
 use Crustum\Mcp\Support\ContainerRegistry;
 use Crustum\Mcp\Support\McpContainerBindings;
 use Crustum\Mcp\Support\McpSdk;
 use Crustum\Mcp\Support\OAuthDebugLog;
-use Crustum\PluginManifest\Manifest\ManifestInterface;
-use Crustum\PluginManifest\Manifest\ManifestTrait;
 use Crustum\Tessera\ClientRepository;
 use Override;
 use Throwable;
@@ -36,13 +36,9 @@ use Throwable;
  *
  * Registers container bindings, MCP OAuth scope, scoped FileLog, routes, commands,
  * and disconnects MCP clients on process shutdown.
- *
- * @uses \Crustum\PluginManifest\Manifest\ManifestTrait
  */
-class McpPlugin extends BasePlugin implements ManifestInterface
+class McpPlugin extends BasePlugin
 {
-    use ManifestTrait;
-
     /**
      * Plugin name.
      *
@@ -74,9 +70,12 @@ class McpPlugin extends BasePlugin implements ManifestInterface
     /**
      * HTTP middleware enabled.
      *
+     * Registers the authorization framing middleware globally so the OAuth
+     * authorize and device pages cannot be framed.
+     *
      * @var bool
      */
-    protected bool $middlewareEnabled = false;
+    protected bool $middlewareEnabled = true;
 
     /**
      * Whether the process shutdown disconnect callback was registered.
@@ -112,6 +111,22 @@ class McpPlugin extends BasePlugin implements ManifestInterface
         $this->registerMcpLogger();
         $this->registerMcpScope();
         $this->registerClientDisconnect();
+    }
+
+    /**
+     * Register global HTTP middleware.
+     *
+     * Adds frame protection headers to the OAuth authorize and device pages.
+     *
+     * @param \Cake\Http\MiddlewareQueue $middlewareQueue Middleware queue
+     * @return \Cake\Http\MiddlewareQueue
+     */
+    #[Override]
+    public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
+    {
+        $middlewareQueue->add(new AddAuthorizationFramingHeaders());
+
+        return $middlewareQueue;
     }
 
     /**
@@ -278,28 +293,5 @@ class McpPlugin extends BasePlugin implements ManifestInterface
             } catch (Throwable) {
             }
         });
-    }
-
-    /**
-     * Plugin install assets.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    public static function manifest(): array
-    {
-        $pluginPath = dirname(__DIR__);
-
-        return array_merge(
-            static::manifestConfig(
-                $pluginPath . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'mcp.php',
-                CONFIG . 'mcp.php',
-                false,
-            ),
-            static::manifestBootstrapAppend(
-                "if (file_exists(CONFIG . 'mcp.php')) {\n    Configure::load('mcp', 'default');\n}",
-                '// Mcp Plugin Configuration',
-            ),
-            static::manifestStarRepo('Crustum/Mcp'),
-        );
     }
 }

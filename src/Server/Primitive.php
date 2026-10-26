@@ -54,9 +54,11 @@ abstract class Primitive implements Arrayable
     {
         $attribute = $this->resolveAttribute(Name::class);
 
-        return $attribute !== null
-            ? $attribute->value
-            : ($this->name !== '' ? $this->name : Str::kebab((new ReflectionClass($this))->getShortName()));
+        if ($attribute instanceof Name) {
+            return $attribute->value;
+        }
+
+        return $this->name !== '' ? $this->name : Str::kebab((new ReflectionClass($this))->getShortName());
     }
 
     /**
@@ -68,9 +70,11 @@ abstract class Primitive implements Arrayable
     {
         $attribute = $this->resolveAttribute(Title::class);
 
-        return $attribute !== null
-            ? $attribute->value
-            : ($this->title !== '' ? $this->title : Str::headline((new ReflectionClass($this))->getShortName()));
+        if ($attribute instanceof Title) {
+            return $attribute->value;
+        }
+
+        return $this->title !== '' ? $this->title : Str::headline((new ReflectionClass($this))->getShortName());
     }
 
     /**
@@ -82,9 +86,11 @@ abstract class Primitive implements Arrayable
     {
         $attribute = $this->resolveAttribute(Description::class);
 
-        return $attribute !== null
-            ? $attribute->value
-            : ($this->description !== '' ? $this->description : Str::headline((new ReflectionClass($this))->getShortName()));
+        if ($attribute instanceof Description) {
+            return $attribute->value;
+        }
+
+        return $this->description !== '' ? $this->description : Str::headline((new ReflectionClass($this))->getShortName());
     }
 
     /**
