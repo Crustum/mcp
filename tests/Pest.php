@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Cake\Console\TestSuite\ConsoleIntegrationTestTrait;
 use Crustum\Mcp\Client\ClientManager;
+use Crustum\Mcp\Client\OAuth\AuthServerDiscovery;
 use Crustum\Mcp\Client\OAuth\OAuthRouteRegistrar;
 use Crustum\Mcp\Test\Support\HttpFake;
 use Crustum\Mcp\Test\TestCase\McpTestCase;
@@ -13,6 +14,14 @@ uses(ConsoleIntegrationTestTrait::class)->in('Feature/Command', 'Unit/Command');
 
 pest()->beforeEach(function (): void {
     ClientManager::setInstance(new ClientManager());
+})->in('Unit/Client');
+
+pest()->beforeEach(function (): void {
+    AuthServerDiscovery::resolveHostsUsing(fn(string $host): array => ['93.184.216.34']);
+})->in('Unit/Client');
+
+pest()->afterEach(function (): void {
+    AuthServerDiscovery::resolveHostsUsing(null);
 })->in('Unit/Client');
 
 pest()->afterEach(function (): void {
@@ -57,6 +66,14 @@ pest()->beforeEach(function (): void {
     ClientManager::setInstance(new ClientManager());
     OAuthRouteRegistrar::clearHandlers();
     resetMcpRegistrarState();
+})->in('Feature/Client');
+
+pest()->beforeEach(function (): void {
+    AuthServerDiscovery::resolveHostsUsing(fn(string $host): array => ['93.184.216.34']);
+})->in('Feature/Client');
+
+pest()->afterEach(function (): void {
+    AuthServerDiscovery::resolveHostsUsing(null);
 })->in('Feature/Client');
 
 pest()->afterEach(function (): void {

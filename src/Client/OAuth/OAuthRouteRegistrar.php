@@ -11,6 +11,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionType;
 use Throwable;
 
 /**
@@ -289,7 +290,7 @@ class OAuthRouteRegistrar
     {
         $type = $parameter->getType();
 
-        if ($type === null) {
+        if (!$type instanceof ReflectionType) {
             return $parameter->getName() === 'context';
         }
 

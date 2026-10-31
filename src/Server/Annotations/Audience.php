@@ -30,7 +30,7 @@ class Audience extends Annotation
         foreach ($roles as $role) {
             if (!$role instanceof Role) {
                 throw new InvalidArgumentException(
-                    'All values of ' . Audience::class . ' attributes must be instances of ' . Role::class,
+                    'All values of ' . self::class . ' attributes must be instances of ' . Role::class,
                 );
             }
         }

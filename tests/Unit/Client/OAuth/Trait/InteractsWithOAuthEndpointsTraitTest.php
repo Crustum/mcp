@@ -26,7 +26,7 @@ it('limits discovery requests to http and https with a capped response size', fu
     expect(HttpFake::$recorded)->not->toBe([]);
 
     foreach (HttpFake::$recorded as $recorded) {
-        expect($recorded->options['curl'] ?? null)->toBe([
+        expect($recorded->options['curl'] ?? null)->toMatchArray([
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_MAXFILESIZE => 1_048_576,
         ]);

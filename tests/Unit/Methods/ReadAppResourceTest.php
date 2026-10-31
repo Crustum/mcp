@@ -4,6 +4,7 @@ declare(strict_types=1);
 use Crustum\Mcp\Request;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\Server\AppResource;
+use Crustum\Mcp\Server\Methods\ListResources;
 use Crustum\Mcp\Server\Methods\ReadResource;
 use Crustum\Mcp\Server\ServerUrl;
 use Crustum\Mcp\Server\Ui\AppMeta;
@@ -111,4 +112,38 @@ it('does not include _meta.ui on content items for regular resources', function 
     $payload = $result->toArray()['result'];
 
     expect($payload['contents'][0])->not->toHaveKey('_meta');
+});
+
+it('excludes _meta.ui.domain from resources/read and resources/list when app meta is without a domain', function (): void {
+    $resource = new class extends AppResource
+    {
+        public function appMeta(): AppMeta
+        {
+            return AppMeta::make()->prefersBorder()->withoutDomain();
+        }
+
+        public function handle(Request $request): Response
+        {
+            return Response::text('<html><body>Hello</body></html>');
+        }
+    };
+
+    $context = $this->getServerContext([
+        'resources' => [$resource],
+    ]);
+
+    $read = (new ReadResource())->handle(new JsonRpcRequest(
+        id: 1,
+        method: 'resources/read',
+        params: ['uri' => $resource->uri()],
+    ), $context)->toArray()['result'];
+
+    $list = (new ListResources())->handle(new JsonRpcRequest(
+        id: 2,
+        method: 'resources/list',
+        params: [],
+    ), $context)->toArray()['result'];
+
+    expect($read['contents'][0]['_meta']['ui'])->toBe(['prefersBorder' => true])
+        ->and($list['resources'][0]['_meta']['ui'])->toBe(['prefersBorder' => true]);
 });

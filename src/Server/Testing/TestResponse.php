@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Server\Testing;
 
+use BackedEnum;
 use Cake\Collection\Collection;
 use Cake\Utility\Hash;
+use Closure;
 use Crustum\Mcp\Server\Primitive;
 use Crustum\Mcp\Server\Prompt;
 use Crustum\Mcp\Server\Resource;
@@ -158,6 +160,298 @@ class TestResponse
             $this->toJsonRepresentation($structuredContent),
             $actual,
             'The expected structured content does not match the actual structured content.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert the number of items in the structured content or at a key.
+     *
+     * @param int $count Expected item count
+     * @param string|null $key Dotted path within the structured content
+     * @return static
+     */
+    public function assertStructuredContentCount(int $count, ?string $key = null): static
+    {
+        $actual = $this->structuredContentPath($this->requireStructuredContent(), $key);
+
+        Assert::assertCount($count, $actual, "The expected structured content count [{$count}] does not match the actual count.");
+
+        return $this;
+    }
+
+    /**
+     * Assert the value at a structured content path.
+     *
+     * @param string $path Dotted path within the structured content
+     * @param \Closure(mixed): bool|mixed $expect Expected value or truth test
+     * @return static
+     */
+    public function assertStructuredContentPath(string $path, mixed $expect): static
+    {
+        $actual = $this->requireStructuredContent();
+
+        $value = $this->structuredContentPath($actual, $path);
+
+        if ($expect instanceof Closure) {
+            Assert::assertTrue($expect($value), "The structured content at [{$path}] does not pass the given truth test.");
+
+            return $this;
+        }
+
+        Assert::assertSame(
+            $expect instanceof BackedEnum ? $expect->value : $expect,
+            $value,
+            "The expected structured content at [{$path}] does not match the actual value.",
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert several structured content paths at once.
+     *
+     * @param array<string, mixed> $paths Paths mapped to expected values
+     * @return static
+     */
+    public function assertStructuredContentPaths(array $paths): static
+    {
+        foreach ($paths as $path => $expected) {
+            $this->assertStructuredContentPath($path, $expected);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Assert the value at a path ignoring order.
+     *
+     * @param string $path Dotted path within the structured content
+     * @param array<array-key, mixed> $expect Expected value
+     * @return static
+     */
+    public function assertStructuredContentPathCanonicalizing(string $path, array $expect): static
+    {
+        $actual = $this->structuredContentPath($this->requireStructuredContent(), $path);
+
+        Assert::assertEqualsCanonicalizing($expect, $actual, "The expected structured content at [{$path}] does not match the actual value.");
+
+        return $this;
+    }
+
+    /**
+     * Assert several structured content paths ignoring order.
+     *
+     * @param array<string, array<array-key, mixed>> $paths Paths mapped to expected values
+     * @return static
+     */
+    public function assertStructuredContentPathsCanonicalizing(array $paths): static
+    {
+        foreach ($paths as $path => $expected) {
+            $this->assertStructuredContentPathCanonicalizing($path, $expected);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content matches exactly, ignoring key order.
+     *
+     * @param array<array-key, mixed> $data Expected structured content
+     * @return static
+     */
+    public function assertExactStructuredContent(array $data): static
+    {
+        Assert::assertEquals(
+            $this->sortStructure($data, false),
+            $this->sortStructure($this->requireStructuredContent(), false),
+            'The expected structured content does not match the actual structured content.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content matches, ignoring order entirely.
+     *
+     * @param array<array-key, mixed> $data Expected structured content
+     * @return static
+     */
+    public function assertSimilarStructuredContent(array $data): static
+    {
+        Assert::assertEquals(
+            $this->sortStructure($data, true),
+            $this->sortStructure($this->requireStructuredContent(), true),
+            'The expected structured content does not match the actual structured content.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content contains the given fragment.
+     *
+     * @param array<array-key, mixed> $data Expected fragment
+     * @return static
+     */
+    public function assertStructuredContentFragment(array $data): static
+    {
+        Assert::assertTrue(
+            $this->containsFragment($this->requireStructuredContent(), $data),
+            'The expected structured content fragment was not found.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content contains every given fragment.
+     *
+     * @param array<array-key, array<array-key, mixed>> $data Expected fragments
+     * @return static
+     */
+    public function assertStructuredContentFragments(array $data): static
+    {
+        foreach ($data as $fragment) {
+            $this->assertStructuredContentFragment($fragment);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content does not contain the given fragment.
+     *
+     * @param array<array-key, mixed> $data Unexpected fragment
+     * @param bool $exact Whether the fragment must match exactly
+     * @return static
+     */
+    public function assertStructuredContentMissing(array $data, bool $exact = false): static
+    {
+        $actual = $this->requireStructuredContent();
+
+        Assert::assertFalse(
+            $exact ? $this->containsExact($actual, $data) : $this->containsFragment($actual, $data),
+            'The unexpected structured content fragment was found.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content does not contain the exact fragment.
+     *
+     * @param array<array-key, mixed> $data Unexpected fragment
+     * @return static
+     */
+    public function assertStructuredContentMissingExact(array $data): static
+    {
+        if ($this->containsExact($this->requireStructuredContent(), $data)) {
+            Assert::fail('The unexpected structured content fragment was found.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Assert no value exists at the given structured content path.
+     *
+     * @param string $path Dotted path within the structured content
+     * @return static
+     */
+    public function assertStructuredContentMissingPath(string $path): static
+    {
+        Assert::assertNull(
+            $this->structuredContentPath($this->requireStructuredContent(), $path),
+            "The structured content at [{$path}] is not missing.",
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert no values exist at the given structured content paths.
+     *
+     * @param array<int, string> $paths Dotted paths within the structured content
+     * @return static
+     */
+    public function assertStructuredContentMissingPaths(array $paths): static
+    {
+        foreach ($paths as $path) {
+            $this->assertStructuredContentMissingPath($path);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content has the given structure.
+     *
+     * @param array<array-key, mixed>|null $structure Expected structure
+     * @param array<array-key, mixed>|null $responseData Structured content to check instead of the response
+     * @return static
+     */
+    public function assertStructuredContentStructure(?array $structure = null, ?array $responseData = null): static
+    {
+        $this->assertContentStructure($responseData ?? $this->requireStructuredContent(), $structure ?? [], false);
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content has exactly the given structure.
+     *
+     * @param array<array-key, mixed>|null $structure Expected structure
+     * @param array<array-key, mixed>|null $responseData Structured content to check instead of the response
+     * @return static
+     */
+    public function assertExactStructuredContentStructure(?array $structure = null, ?array $responseData = null): static
+    {
+        $this->assertContentStructure($responseData ?? $this->requireStructuredContent(), $structure ?? [], true);
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content (or value at a key) is a list.
+     *
+     * @param string|null $key Dotted path within the structured content
+     * @return static
+     */
+    public function assertStructuredContentIsArray(?string $key = null): static
+    {
+        $data = $this->structuredContentPath($this->requireStructuredContent(), $key);
+
+        $encoded = json_encode($data, JSON_THROW_ON_ERROR);
+
+        Assert::assertTrue(
+            is_array($data)
+            && str_starts_with($encoded, '[')
+            && str_ends_with($encoded, ']'),
+            'The structured content is not an array.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert the structured content (or value at a key) is an object.
+     *
+     * @param string|null $key Dotted path within the structured content
+     * @return static
+     */
+    public function assertStructuredContentIsObject(?string $key = null): static
+    {
+        $data = $this->structuredContentPath($this->requireStructuredContent(), $key);
+
+        $encoded = json_encode($data, JSON_THROW_ON_ERROR);
+
+        Assert::assertTrue(
+            is_array($data)
+            && str_starts_with($encoded, '{')
+            && str_ends_with($encoded, '}'),
+            'The structured content is not an object.',
         );
 
         return $this;
@@ -462,6 +756,71 @@ class TestResponse
     }
 
     /**
+     * Require structured content to be present in the response.
+     *
+     * @return array<string, mixed>
+     */
+    protected function requireStructuredContent(): array
+    {
+        $actual = $this->structuredContent();
+
+        Assert::assertNotNull($actual, 'The response does not contain any structured content.');
+
+        return $actual;
+    }
+
+    /**
+     * Read a value from structured content using dotted path notation.
+     *
+     * A `*` segment fans out over every item, returning all matches.
+     *
+     * @param array<string, mixed> $data Structured content
+     * @param string|null $key Dotted path, or null for the whole content
+     * @return mixed
+     */
+    protected function structuredContentPath(array $data, ?string $key): mixed
+    {
+        if ($key === null || $key === '') {
+            return $data;
+        }
+
+        $segments = explode('.', $key);
+        $values = [$data];
+
+        foreach ($segments as $segment) {
+            $next = [];
+
+            foreach ($values as $value) {
+                if (!is_array($value)) {
+                    continue;
+                }
+
+                if ($segment === '*') {
+                    foreach ($value as $item) {
+                        $next[] = $item;
+                    }
+
+                    continue;
+                }
+
+                if (array_key_exists($segment, $value)) {
+                    $next[] = $value[$segment];
+                } elseif (is_numeric($segment) && array_key_exists((int)$segment, $value)) {
+                    $next[] = $value[(int)$segment];
+                }
+            }
+
+            $values = $next;
+        }
+
+        if (in_array('*', $segments, true)) {
+            return $values;
+        }
+
+        return $values[0] ?? null;
+    }
+
+    /**
      * Resolve structured content from the response after JSON serialization.
      *
      * @return array<string, mixed>|null
@@ -493,5 +852,164 @@ class TestResponse
             associative: true,
             flags: JSON_THROW_ON_ERROR,
         );
+    }
+
+    /**
+     * Sort structured content for order-insensitive comparison.
+     *
+     * @param mixed $value Value to sort
+     * @param bool $sortLists Whether list order is insignificant
+     * @return mixed
+     */
+    protected function sortStructure(mixed $value, bool $sortLists): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->sortStructure($item, $sortLists);
+        }
+
+        if (array_is_list($value)) {
+            if ($sortLists) {
+                usort($value, static fn(mixed $left, mixed $right): int => json_encode($left) <=> json_encode($right));
+            }
+
+            return $value;
+        }
+
+        ksort($value);
+
+        return $value;
+    }
+
+    /**
+     * Determine whether structured content contains a fragment.
+     *
+     * @param mixed $actual Structured content to search
+     * @param array<array-key, mixed> $fragment Fragment to find
+     * @return bool
+     */
+    protected function containsFragment(mixed $actual, array $fragment): bool
+    {
+        if (is_array($actual) && $this->isSubset($fragment, $actual)) {
+            return true;
+        }
+
+        if (is_array($actual)) {
+            foreach ($actual as $item) {
+                if ($this->containsFragment($item, $fragment)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether an array contains every fragment entry.
+     *
+     * @param array<array-key, mixed> $fragment Fragment to find
+     * @param array<array-key, mixed> $actual Array to search
+     * @return bool
+     */
+    protected function isSubset(array $fragment, array $actual): bool
+    {
+        foreach ($fragment as $key => $value) {
+            if (!array_key_exists($key, $actual)) {
+                return false;
+            }
+
+            if (is_array($value) && is_array($actual[$key])) {
+                if (!$this->isSubset($value, $actual[$key])) {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if ($actual[$key] !== $value) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine whether structured content contains an exact match.
+     *
+     * @param mixed $actual Structured content to search
+     * @param mixed $expected Value to find
+     * @return bool
+     */
+    protected function containsExact(mixed $actual, mixed $expected): bool
+    {
+        if ($actual == $expected) {
+            return true;
+        }
+
+        if (is_array($actual)) {
+            foreach ($actual as $item) {
+                if ($this->containsExact($item, $expected)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Assert structured content matches an expected structure.
+     *
+     * List specs name required keys; a `*` key applies its spec to every item.
+     *
+     * @param mixed $actual Structured content to check
+     * @param array<array-key, mixed> $structure Expected structure
+     * @param bool $exact Whether extra keys fail the assertion
+     * @return void
+     */
+    protected function assertContentStructure(mixed $actual, array $structure, bool $exact): void
+    {
+        Assert::assertIsArray($actual, 'The structured content structure does not match.');
+
+        if (array_is_list($structure)) {
+            foreach ($structure as $requiredKey) {
+                Assert::assertArrayHasKey($requiredKey, $actual, 'The structured content structure does not match.');
+            }
+
+            if ($exact) {
+                $actualKeys = array_keys($actual);
+                $expectedKeys = $structure;
+                sort($actualKeys);
+                sort($expectedKeys);
+
+                Assert::assertSame($expectedKeys, $actualKeys, 'The structured content structure does not match exactly.');
+            }
+
+            return;
+        }
+
+        foreach ($structure as $key => $nested) {
+            if ($key === '*') {
+                foreach ($actual as $item) {
+                    $this->assertContentStructure($item, $nested, $exact);
+                }
+
+                continue;
+            }
+
+            Assert::assertArrayHasKey($key, $actual, 'The structured content structure does not match.');
+            $this->assertContentStructure($actual[$key], $nested, $exact);
+        }
+
+        if ($exact && !array_key_exists('*', $structure)) {
+            $extra = array_diff(array_keys($actual), array_keys($structure));
+
+            Assert::assertSame([], array_values($extra), 'The structured content structure does not match exactly.');
+        }
     }
 }

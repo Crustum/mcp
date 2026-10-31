@@ -15,6 +15,15 @@ class DynamicClientRegistration
     use InteractsWithOAuthEndpointsTrait;
 
     /**
+     * Create a new dynamic client registration service.
+     *
+     * @param \Crustum\Mcp\Client\OAuth\AuthServerDiscovery $discovery Authorization server discovery service
+     */
+    public function __construct(protected AuthServerDiscovery $discovery = new AuthServerDiscovery())
+    {
+    }
+
+    /**
      * Register a new OAuth client dynamically.
      *
      * @param string $registrationEndpoint Registration endpoint URL
@@ -41,7 +50,7 @@ class DynamicClientRegistration
             'token_endpoint_auth_method' => $tokenEndpointAuthMethod->value,
             'application_type' => $applicationType,
             'scope' => $scope,
-        ], static fn(mixed $value): bool => $value !== null));
+        ], static fn(mixed $value): bool => $value !== null), $this->discovery->pinOptions($registrationEndpoint));
 
         if (!$response->isSuccess()) {
             throw new OAuthException("Dynamic client registration failed with status [{$response->getStatusCode()}].");

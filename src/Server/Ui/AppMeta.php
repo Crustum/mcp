@@ -14,6 +14,13 @@ use Crustum\Mcp\Server\Ui\Enums\Library;
 final class AppMeta implements Arrayable
 {
     /**
+     * Whether the app metadata uses a sandbox domain.
+     *
+     * @var bool
+     */
+    protected bool $usesDomain = true;
+
+    /**
      * Create a new app metadata configuration.
      *
      * @param \Crustum\Mcp\Server\Ui\Csp|null $csp Content security policy configuration
@@ -76,8 +83,32 @@ final class AppMeta implements Arrayable
     public function domain(string $domain): static
     {
         $this->domain = $domain;
+        $this->usesDomain = true;
 
         return $this;
+    }
+
+    /**
+     * Leave the application domain out of the metadata.
+     *
+     * @return static
+     */
+    public function withoutDomain(): static
+    {
+        $this->domain = null;
+        $this->usesDomain = false;
+
+        return $this;
+    }
+
+    /**
+     * Determine whether the metadata uses a sandbox domain.
+     *
+     * @return bool
+     */
+    public function usesDomain(): bool
+    {
+        return $this->usesDomain;
     }
 
     /**
