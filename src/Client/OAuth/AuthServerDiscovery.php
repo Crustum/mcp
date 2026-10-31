@@ -7,6 +7,7 @@ use Cake\Http\Client;
 use Cake\Http\Client\Exception\MissingResponseException;
 use Cake\Http\Client\Exception\NetworkException;
 use Cake\Utility\Hash;
+use Closure;
 use Crustum\Mcp\Client\Exception\OAuthException;
 use Crustum\Mcp\Client\Trait\InteractsWithOAuthEndpointsTrait;
 
@@ -16,6 +17,49 @@ use Crustum\Mcp\Client\Trait\InteractsWithOAuthEndpointsTrait;
 class AuthServerDiscovery
 {
     use InteractsWithOAuthEndpointsTrait;
+
+    /**
+     * IPv6 address prefixes that are never public.
+     *
+     * @var array<int, string>
+     */
+    protected const NON_PUBLIC_IPV6_PREFIXES = [
+        'ff',
+        '2002',
+        '20010000',
+        '0064ff9b0001',
+        'fec',
+        'fed',
+        'fee',
+        'fef',
+        '000000000000000000000000',
+        '0000000000000000ffff0000',
+    ];
+
+    /**
+     * Resolved addresses keyed by normalized host.
+     *
+     * @var array<string, array<int, string>>
+     */
+    protected array $resolved = [];
+
+    /**
+     * Host resolver override for tests.
+     *
+     * @var \Closure|null
+     */
+    protected static ?Closure $hostResolver = null;
+
+    /**
+     * Override host resolution, e.g. in tests.
+     *
+     * @param \Closure|null $callback Resolver receiving a host and returning addresses
+     * @return void
+     */
+    public static function resolveHostsUsing(?Closure $callback): void
+    {
+        static::$hostResolver = $callback;
+    }
 
     /**
      * Discover OAuth metadata for a protected MCP resource.
@@ -47,7 +91,7 @@ class AuthServerDiscovery
 
         $this->requireSecure($serverMetadata->authorizationEndpoint);
         $this->requireSecure($serverMetadata->tokenEndpoint);
-        $this->requireNotInternal($serverMetadata->authorizationEndpoint, $resourceUrl);
+        $this->requireNotInternal($serverMetadata->authorizationEndpoint, $resourceUrl, resolve: false);
         $this->requireNotInternal($serverMetadata->tokenEndpoint, $resourceUrl);
 
         if ($serverMetadata->registrationEndpoint !== null) {
@@ -92,6 +136,31 @@ class AuthServerDiscovery
     }
 
     /**
+     * Build curl options pinning a URL to its checked addresses.
+     *
+     * @param string $url Request URL
+     * @return array<string, mixed>
+     */
+    public function pinOptions(string $url): array
+    {
+        if (!defined('CURLOPT_RESOLVE')) {
+            return [];
+        }
+
+        $parts = $this->parse($url);
+        $addresses = $this->resolved[$this->normalizedHost($parts['host'])] ?? [];
+
+        if ($addresses === []) {
+            return [];
+        }
+
+        $port = $parts['port'] ?? ($parts['scheme'] === 'https' ? 443 : 80);
+        $addresses = array_map(static fn(string $address): string => str_contains($address, ':') ? "[{$address}]" : $address, $addresses);
+
+        return ['curl' => [CURLOPT_RESOLVE => ["{$parts['host']}:{$port}:" . implode(',', $addresses)]]];
+    }
+
+    /**
      * Probe a resource with a ping request, following redirects manually.
      *
      * @param string $resourceUrl Protected resource URL
@@ -111,12 +180,16 @@ class AuthServerDiscovery
 
         while (true) {
             try {
+                /** @var array<int, mixed> $curl */
+                $curl = ($this->pinOptions($url)['curl'] ?? []) + $this->oAuthCurlOptions();
+
                 $response = $this->oAuthHttpClient()->post($url, $body, [
                     'headers' => array_merge([
                         'Accept' => 'application/json, text/event-stream',
                         'Content-Type' => 'application/json',
                     ], $headers),
                     'redirect' => 0,
+                    'curl' => $curl,
                 ]);
             } catch (NetworkException | MissingResponseException $exception) {
                 throw new OAuthException("Unable to reach the resource [{$resourceUrl}] to verify its protected resource metadata.", 0, $exception);
@@ -180,7 +253,7 @@ class AuthServerDiscovery
      */
     protected function fetchResourceMetadata(string $metadataUrl, bool $explicit = false): array
     {
-        $response = $this->oAuthGet($metadataUrl);
+        $response = $this->oAuthGet($metadataUrl, $this->pinOptions($metadataUrl));
 
         if (!$response->isSuccess()) {
             if ($explicit) {
@@ -245,7 +318,7 @@ class AuthServerDiscovery
     protected function fetchMetadata(string $issuer): AuthServerMetadata
     {
         foreach ($this->metadataUrls($issuer) as $metadataUrl) {
-            $response = $this->oAuthGet($metadataUrl);
+            $response = $this->oAuthGet($metadataUrl, $this->pinOptions($metadataUrl));
 
             if (!$response->isSuccess()) {
                 continue;
@@ -330,7 +403,7 @@ class AuthServerDiscovery
             return;
         }
 
-        if ($this->isLocalhost($this->normalizedHost($parts['host']))) {
+        if ($parts['scheme'] === 'http' && $this->isLocalhost($this->normalizedHost($parts['host']))) {
             return;
         }
 
@@ -344,7 +417,7 @@ class AuthServerDiscovery
      * @param string $resourceUrl Protected resource URL
      * @return void
      */
-    protected function requireFetchable(string $url, string $resourceUrl): void
+    public function requireFetchable(string $url, string $resourceUrl): void
     {
         $this->requireSecure($url);
         $this->requireNotInternal($url, $resourceUrl);
@@ -355,18 +428,63 @@ class AuthServerDiscovery
      *
      * @param string $url Endpoint URL
      * @param string $resourceUrl Protected resource URL
+     * @param bool $resolve Whether to resolve host names to addresses
      * @return void
      */
-    protected function requireNotInternal(string $url, string $resourceUrl): void
+    protected function requireNotInternal(string $url, string $resourceUrl, bool $resolve = true): void
     {
-        $parts = $this->parse($url);
-        $resourceParts = $this->parse($resourceUrl);
-        $host = $this->normalizedHost($parts['host']);
-        $resourceHost = $this->normalizedHost($resourceParts['host']);
+        $host = $this->normalizedHost($this->parse($url)['host']);
 
-        if ($this->isInternalHost($host) && (!$this->isLocalhost($host) || !$this->isLocalhost($resourceHost))) {
-            throw new OAuthException("OAuth endpoint [{$url}] cannot use a private or internal host.");
+        if (!$this->isLocalhost($host) && !$this->isIpAddress($host)) {
+            if (!$resolve || ($this->usesProxy() && !$this->isLocalName($host))) {
+                return;
+            }
+
+            if ($this->resolve($host) === []) {
+                throw new OAuthException("OAuth endpoint [{$url}] cannot use a private, internal, or unresolvable host.");
+            }
         }
+
+        if (!$this->isInternalHost($host) || $this->isPrivateHost($this->normalizedHost($this->parse($resourceUrl)['host']))) {
+            return;
+        }
+
+        throw new OAuthException("OAuth endpoint [{$url}] cannot use a private, internal, or unresolvable host.");
+    }
+
+    /**
+     * Determine whether a host is a local development name.
+     *
+     * @param string $host Host name
+     * @return bool
+     */
+    protected function isLocalName(string $host): bool
+    {
+        $name = '.' . rtrim($host, '.');
+
+        foreach (['.localhost', '.local', '.internal', '.test'] as $suffix) {
+            if (str_ends_with($name, $suffix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether requests go through an HTTP proxy.
+     *
+     * @return bool
+     */
+    protected function usesProxy(): bool
+    {
+        foreach (['HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy'] as $variable) {
+            if (getenv($variable)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -381,11 +499,142 @@ class AuthServerDiscovery
             return true;
         }
 
-        if (filter_var($host, FILTER_VALIDATE_IP) === false) {
+        $addresses = $this->isIpAddress($host) ? [$host] : $this->resolve($host);
+
+        return array_filter($addresses, fn(string $address): bool => !$this->isPublicAddress($address)) !== [];
+    }
+
+    /**
+     * Determine whether a host only resolves to private addresses.
+     *
+     * @param string $host Host name or IP address
+     * @return bool
+     */
+    protected function isPrivateHost(string $host): bool
+    {
+        if ($this->isLocalhost($host)) {
+            return true;
+        }
+
+        $addresses = $this->isIpAddress($host) ? [$host] : $this->resolve($host);
+
+        return $addresses !== [] && array_filter($addresses, $this->isPublicAddress(...)) === [];
+    }
+
+    /**
+     * Determine whether a host value is an IP address.
+     *
+     * @param string $host Host name or IP address
+     * @return bool
+     */
+    protected function isIpAddress(string $host): bool
+    {
+        return filter_var($host, FILTER_VALIDATE_IP) !== false;
+    }
+
+    /**
+     * Determine whether an IP address is publicly routable.
+     *
+     * @param string $address IP address
+     * @return bool
+     */
+    protected function isPublicAddress(string $address): bool
+    {
+        if (!$this->isIpAddress($address)) {
             return false;
         }
 
-        return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+        $packed = (string)inet_pton($address);
+
+        if (str_starts_with($packed, str_repeat("\0", 10) . "\xFF\xFF") || str_starts_with($packed, "\x00\x64\xFF\x9B" . str_repeat("\0", 8))) {
+            return $this->isPublicAddress((string)inet_ntop(substr($packed, 12)));
+        }
+
+        if ($this->isRestrictedAddress($address)) {
+            return false;
+        }
+
+        if (strlen($packed) === 4) {
+            $long = (int)ip2long($address);
+
+            return ($long & 0xFFC00000) !== 0x64400000 && ($long & 0xF0000000) !== 0xE0000000;
+        }
+
+        return !$this->startsWithAny(bin2hex($packed), self::NON_PUBLIC_IPV6_PREFIXES);
+    }
+
+    /**
+     * Determine whether an IP address is restricted to non-global ranges.
+     *
+     * The validator returns the address unchanged on success, so any other
+     * result means the address is restricted.
+     *
+     * @param string $address IP address
+     * @return bool
+     */
+    protected function isRestrictedAddress(string $address): bool
+    {
+        $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | FILTER_FLAG_GLOBAL_RANGE;
+
+        return filter_var($address, FILTER_VALIDATE_IP, $flags) !== $address;
+    }
+
+    /**
+     * Determine whether a value starts with any of the given prefixes.
+     *
+     * @param string $value Value to check
+     * @param array<int, string> $prefixes Accepted prefixes
+     * @return bool
+     */
+    protected function startsWithAny(string $value, array $prefixes): bool
+    {
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($value, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Resolve a host to IP addresses, caching per instance.
+     *
+     * @param string $host Host name or IP address
+     * @return array<int, string>
+     */
+    protected function resolve(string $host): array
+    {
+        return $this->resolved[$host] ??= $this->lookup($host);
+    }
+
+    /**
+     * Look up IP addresses for a host.
+     *
+     * DNS warnings are suppressed while resolving.
+     *
+     * @param string $host Host name or IP address
+     * @return array<int, string>
+     */
+    protected function lookup(string $host): array
+    {
+        if (static::$hostResolver instanceof Closure) {
+            return (static::$hostResolver)($host);
+        }
+
+        set_error_handler(static fn(): bool => true);
+
+        try {
+            $addresses = gethostbynamel($host) ?: [];
+
+            foreach (dns_get_record($host, DNS_AAAA) ?: [] as $record) {
+                $addresses[] = $record['ipv6'];
+            }
+        } finally {
+            restore_error_handler();
+        }
+
+        return array_values(array_unique($addresses));
     }
 
     /**

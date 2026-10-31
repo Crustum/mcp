@@ -4,9 +4,11 @@ declare(strict_types=1);
 use Cake\Http\Response;
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Exception\OAuthException;
+use Crustum\Mcp\Client\OAuth\AuthServerDiscovery;
 use Crustum\Mcp\Client\OAuth\OAuthClient;
 use Crustum\Mcp\Client\OAuth\OAuthConfig;
 use Crustum\Mcp\Client\OAuth\TokenSet;
+use Crustum\Mcp\Test\Support\HttpFake;
 
 function fakeDiscoveryMap(): array
 {
@@ -176,6 +178,59 @@ it('exchanges an authorization code for a token set', function (): void {
         && ($request['code'] ?? null) === 'auth-code'
         && ($request['code_verifier'] ?? null) === 'the-verifier'
         && ($request['resource'] ?? null) === 'https://mcp.test/mcp');
+});
+
+it('rejects a stored token endpoint that now resolves to an internal host', function (): void {
+    AuthServerDiscovery::resolveHostsUsing(fn(string $host): array => $host === 'auth.test' ? ['10.0.0.5'] : ['93.184.216.34']);
+
+    Http::fake();
+
+    Session::put('mcp.oauth.' . sha1('https://mcp.test/mcp'), [
+        'state' => 'the-state',
+        'verifier' => 'the-verifier',
+        'client_id' => 'client-123',
+        'client_secret' => null,
+        'token_endpoint' => 'https://auth.test/token',
+        'redirect_uri' => 'https://app.test/callback',
+        'return_to' => null,
+    ]);
+
+    $session = mcpSession();
+
+    expect(fn(): TokenSet => Client::web('https://mcp.test/mcp')
+        ->withOAuth(clientId: 'client-123')
+        ->oAuthClient(session: $session)
+        ->exchangeCallback(['code' => 'auth-code', 'state' => 'the-state'], $session))
+        ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
+
+    Http::assertNothingSent();
+});
+
+it('pins the token and registration requests to the checked addresses', function (): void {
+    if (!defined('CURLOPT_RESOLVE')) {
+        $this->markTestSkipped('curl extension is not loaded.');
+    }
+
+    Http::fake(array_merge(fakeDiscoveryMap(), [
+        'https://auth.test/register' => Http::response(['client_id' => 'dcr-999']),
+        'https://auth.test/token' => Http::response(['access_token' => 'access-token', 'token_type' => 'Bearer']),
+    ]));
+
+    $oauth = Client::web('https://mcp.test/mcp')
+        ->withOAuth(redirectUri: 'https://app.test/callback')
+        ->oAuthClient(session: mcpSession());
+
+    $oauth->redirect();
+    $oauth->refreshCredentials('refresh-token', 'dcr-999');
+
+    $pins = [];
+
+    foreach (HttpFake::$recorded as $recorded) {
+        $pins[$recorded->url] = $recorded->options['curl'][CURLOPT_RESOLVE] ?? null;
+    }
+
+    expect($pins['https://auth.test/register'])->toBe(['auth.test:443:93.184.216.34'])
+        ->and($pins['https://auth.test/token'])->toBe(['auth.test:443:93.184.216.34']);
 });
 
 it('rejects a mismatched state parameter', function (): void {
@@ -441,7 +496,7 @@ it('rejects protected resource metadata urls on internal hosts', function (): vo
         ->withOAuth(clientId: 'client-123', redirectUri: 'https://app.test/callback')
         ->oAuthClient('https://127.0.0.1/.well-known/oauth-protected-resource', session: mcpSession())
         ->redirect())
-        ->toThrow(OAuthException::class, 'private or internal host');
+        ->toThrow(OAuthException::class, 'private, internal, or unresolvable host');
 });
 
 it('rejects protected resource metadata urls served over plain http', function (): void {
@@ -539,6 +594,24 @@ it('rejects an authorization server served over plain http', function (): void {
         ->redirect())
         ->toThrow(OAuthException::class, 'must be served over HTTPS');
 });
+
+it('rejects a non http authorization server on a localhost host', function (string $issuer): void {
+    Http::fake([
+        'http://localhost/.well-known/oauth-protected-resource/mcp' => Http::response([
+            'authorization_servers' => [$issuer],
+        ]),
+    ]);
+
+    expect(fn(): Response => Client::web('http://localhost/mcp')
+        ->withOAuth(clientId: 'client-123', redirectUri: 'https://app.test/callback')
+        ->oAuthClient(session: mcpSession())
+        ->redirect())
+        ->toThrow(OAuthException::class, 'must be served over HTTPS');
+})->with([
+    'javascript' => 'javascript://localhost/%0aalert(1)',
+    'file' => 'file://localhost/etc/passwd',
+    'data' => 'data://localhost/text',
+]);
 
 it('falls back to openid connect discovery when oauth metadata is absent', function (): void {
     Http::fake([

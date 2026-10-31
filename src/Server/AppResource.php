@@ -48,9 +48,12 @@ abstract class AppResource extends Resource
      */
     public function resolvedAppMeta(): array
     {
-        $appMeta = $this->appMeta()->toArray();
+        $meta = $this->appMeta();
+        $appMeta = $meta->toArray();
 
-        $appMeta['domain'] ??= $this->toClaudeDomain(ServerUrl::current());
+        if ($meta->usesDomain()) {
+            $appMeta['domain'] ??= $this->toClaudeDomain(ServerUrl::current());
+        }
 
         return $appMeta;
     }

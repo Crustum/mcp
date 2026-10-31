@@ -21,7 +21,7 @@ class AppMeta
      * @param array<int, string>|null $baseUriDomains Allowed base URI domains
      * @param array<int, \Crustum\Mcp\Server\Ui\Enums\Permission>|null $permissions Allowed UI permissions
      * @param bool|null $prefersBorder Whether the UI prefers a border
-     * @param string|null $domain Application domain
+     * @param string|false|null $domain Application domain, or false to leave ui.domain out entirely
      * @param array<int, \Crustum\Mcp\Server\Ui\Enums\Library> $libraries Frontend libraries to include
      */
     public function __construct(
@@ -31,7 +31,7 @@ class AppMeta
         public readonly ?array $baseUriDomains = null,
         public readonly ?array $permissions = null,
         public readonly ?bool $prefersBorder = null,
-        public readonly ?string $domain = null,
+        public readonly string|false|null $domain = null,
         public readonly array $libraries = [],
     ) {
     }
@@ -59,7 +59,9 @@ class AppMeta
             $meta->prefersBorder($this->prefersBorder);
         }
 
-        if ($this->domain !== null) {
+        if ($this->domain === false) {
+            $meta->withoutDomain();
+        } elseif ($this->domain !== null) {
             $meta->domain($this->domain);
         }
 

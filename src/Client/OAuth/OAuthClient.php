@@ -267,8 +267,12 @@ class OAuthClient
         $clientId = (string)$stored['client_id'];
         $clientSecret = isset($stored['client_secret']) ? (string)$stored['client_secret'] : null;
 
+        $tokenEndpoint = (string)$stored['token_endpoint'];
+
+        $this->discovery->requireFetchable($tokenEndpoint, $this->resourceUrl);
+
         $token = $this->requestToken(
-            (string)$stored['token_endpoint'],
+            $tokenEndpoint,
             [
                 'grant_type' => 'authorization_code',
                 'code' => $code,
@@ -346,7 +350,7 @@ class OAuthClient
             throw new OAuthException('No client_id was configured, no https client ID metadata document URL is available, and the authorization server does not support dynamic client registration.');
         }
 
-        return (new DynamicClientRegistration())->register(
+        return (new DynamicClientRegistration($this->discovery))->register(
             $metadata->registrationEndpoint,
             $redirectUri,
             $this->resolveScope(),
@@ -397,7 +401,7 @@ class OAuthClient
         $response = $this->oAuthPostForm($tokenEndpoint, array_filter([
             ...$params,
             ...$credentials,
-        ], static fn(mixed $value): bool => $value !== null), $options);
+        ], static fn(mixed $value): bool => $value !== null), array_merge($this->discovery->pinOptions($tokenEndpoint), $options));
 
         if (!$response->isSuccess()) {
             throw new OAuthException("Token request to [{$tokenEndpoint}] failed with status [{$response->getStatusCode()}].");

@@ -50,18 +50,36 @@ trait InteractsWithOAuthEndpointsTrait
     }
 
     /**
+     * Merge caller options over the base OAuth request options.
+     *
+     * Curl options use integer keys, so they are combined with a union
+     * instead of `array_merge()`, which would renumber the option keys.
+     *
+     * @param array<string, mixed> $options Caller-supplied request options
+     * @return array<string, mixed>
+     */
+    protected function mergeOAuthOptions(array $options): array
+    {
+        /** @var array<int, mixed> $curl */
+        $curl = ($options['curl'] ?? []) + $this->oAuthCurlOptions();
+        $options['curl'] = $curl;
+
+        return array_merge([
+            'redirect' => 0,
+        ], $options);
+    }
+
+    /**
      * Perform a GET request against an OAuth endpoint.
      *
      * @param string $url Request URL
+     * @param array<string, mixed> $options Additional request options
      * @return \Cake\Http\Client\Response
      */
-    protected function oAuthGet(string $url): Client\Response
+    protected function oAuthGet(string $url, array $options = []): Client\Response
     {
         try {
-            return $this->oAuthHttpClient()->get($url, [], [
-                'redirect' => 0,
-                'curl' => $this->oAuthCurlOptions(),
-            ]);
+            return $this->oAuthHttpClient()->get($url, [], $this->mergeOAuthOptions($options));
         } catch (NetworkException $networkException) {
             throw new OAuthException(
                 "OAuth GET request to [{$url}] failed: {$networkException->getMessage()}",
@@ -76,16 +94,16 @@ trait InteractsWithOAuthEndpointsTrait
      *
      * @param string $url Request URL
      * @param array<string, mixed> $data Request payload
+     * @param array<string, mixed> $options Additional request options
      * @return \Cake\Http\Client\Response
      */
-    protected function oAuthPostJson(string $url, array $data): Client\Response
+    protected function oAuthPostJson(string $url, array $data, array $options = []): Client\Response
     {
         try {
-            return $this->oAuthHttpClient()->post($url, $data, [
-                'type' => 'json',
-                'redirect' => 0,
-                'curl' => $this->oAuthCurlOptions(),
-            ]);
+            return $this->oAuthHttpClient()->post($url, $data, array_merge(
+                $this->mergeOAuthOptions($options),
+                ['type' => 'json'],
+            ));
         } catch (NetworkException $networkException) {
             throw new OAuthException(
                 "OAuth POST request to [{$url}] failed: {$networkException->getMessage()}",
@@ -106,10 +124,7 @@ trait InteractsWithOAuthEndpointsTrait
     protected function oAuthPostForm(string $url, array $data, array $options = []): Client\Response
     {
         try {
-            return $this->oAuthHttpClient()->post($url, $data, array_merge([
-                'redirect' => 0,
-                'curl' => $this->oAuthCurlOptions(),
-            ], $options));
+            return $this->oAuthHttpClient()->post($url, $data, $this->mergeOAuthOptions($options));
         } catch (NetworkException $networkException) {
             throw new OAuthException(
                 "OAuth POST request to [{$url}] failed: {$networkException->getMessage()}",

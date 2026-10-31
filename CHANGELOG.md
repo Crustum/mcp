@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0]
+
+### Added
+
+- MCP Apps can opt out of the sandbox domain: `Ui\AppMeta::withoutDomain()`
+  leaves `ui.domain` out of `resolvedAppMeta()` (no auto-derived Claude domain
+  is filled in), and the `AppMeta` attribute accepts `domain: false` for the
+  same effect.
+- Server test responses gained JSON assertions for structured content:
+  `assertStructuredContentCount()`, `assertStructuredContentPath()` /
+  `assertStructuredContentPaths()` (values, closures, or enums),
+  `assertStructuredContentPathCanonicalizing()` /
+  `assertStructuredContentPathsCanonicalizing()`,
+  `assertExactStructuredContent()` / `assertSimilarStructuredContent()`,
+  `assertStructuredContentFragment()` / `assertStructuredContentFragments()`,
+  `assertStructuredContentMissing()` / `assertStructuredContentMissingExact()` /
+  `assertStructuredContentMissingPath(s)`,
+  `assertStructuredContentStructure()` /
+  `assertExactStructuredContentStructure()`, and
+  `assertStructuredContentIsArray()` / `assertStructuredContentIsObject()`.
+
+### Fixed
+
+- OAuth discovery now checks the resolved addresses of discovery hosts: metadata,
+  token, and registration endpoints pointing at private, internal, or
+  unresolvable hosts are rejected. Resolutions are cached per discovery,
+  requests are pinned to the checked addresses, and a stored token endpoint is
+  re-validated before the authorization code is exchanged. The browser-opened
+  authorization endpoint itself stays exempt from resolution, and resolution is
+  skipped behind an HTTP proxy except for local names.
+
 ## [1.1.0]
 
 ### Added
