@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use Crustum\Mcp\Exception\MirroredParameterException;
+use Crustum\Mcp\Support\Enum\MirroredParameterType;
 use Crustum\Mcp\Support\MirroredParameters;
-use Crustum\Mcp\Support\MirroredParameterType;
 use Crustum\Mcp\Support\SchemaPath;
 use Pest\Expectation;
 

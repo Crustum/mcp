@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Server\Methods;
 
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Server\Contracts\Method;
 use Crustum\Mcp\Server\ServerContext;
 use Crustum\Mcp\Transport\JsonRpcRequest;

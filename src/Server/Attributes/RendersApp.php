@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Attributes;
 
 use Attribute;
-use Crustum\Mcp\Server\Ui\Enums\Visibility;
+use Crustum\Mcp\Server\Ui\Enum\Visibility;
 
 /**
  * MCP app rendering attribute for resources.
@@ -14,7 +14,7 @@ class RendersApp
 {
     /**
      * @param class-string $resource App resource class name
-     * @param array<int, \Crustum\Mcp\Server\Ui\Enums\Visibility> $visibility UI visibility scopes
+     * @param array<int, \Crustum\Mcp\Server\Ui\Enum\Visibility> $visibility UI visibility scopes
      */
     public function __construct(
         public string $resource,

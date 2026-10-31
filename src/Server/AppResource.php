@@ -5,7 +5,7 @@ namespace Crustum\Mcp\Server;
 
 use Crustum\Mcp\Server\Attributes\AppMeta as AppMetaAttribute;
 use Crustum\Mcp\Server\Ui\AppMeta;
-use Crustum\Mcp\Server\Ui\Enums\Library;
+use Crustum\Mcp\Server\Ui\Enum\Library;
 use Crustum\Mcp\Support\Str;
 use Override;
 

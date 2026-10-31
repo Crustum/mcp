@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Ui;
 
 use Crustum\Mcp\Contracts\Arrayable;
-use Crustum\Mcp\Server\Ui\Enums\Library;
+use Crustum\Mcp\Server\Ui\Enum\Library;
 
 /**
  * MCP UI application metadata.
@@ -27,7 +27,7 @@ final class AppMeta implements Arrayable
      * @param \Crustum\Mcp\Server\Ui\Permissions|null $permissions UI permission configuration
      * @param string|null $domain Application domain
      * @param bool|null $prefersBorder Whether the UI prefers a border
-     * @param array<int, \Crustum\Mcp\Server\Ui\Enums\Library> $libraries Frontend libraries to include
+     * @param array<int, \Crustum\Mcp\Server\Ui\Enum\Library> $libraries Frontend libraries to include
      */
     public function __construct(
         protected ?Csp $csp = null,
@@ -127,7 +127,7 @@ final class AppMeta implements Arrayable
     /**
      * Set frontend libraries to include.
      *
-     * @param \Crustum\Mcp\Server\Ui\Enums\Library ...$libraries Libraries to include
+     * @param \Crustum\Mcp\Server\Ui\Enum\Library ...$libraries Libraries to include
      * @return static
      */
     public function libraries(Library ...$libraries): static
@@ -140,7 +140,7 @@ final class AppMeta implements Arrayable
     /**
      * Get configured frontend libraries.
      *
-     * @return array<int, \Crustum\Mcp\Server\Ui\Enums\Library>
+     * @return array<int, \Crustum\Mcp\Server\Ui\Enum\Library>
      */
     public function getLibraries(): array
     {

@@ -6,7 +6,7 @@ use Crustum\Mcp\Response;
 use Crustum\Mcp\Server\AppResource;
 use Crustum\Mcp\Server\Attributes\RendersApp;
 use Crustum\Mcp\Server\Tool;
-use Crustum\Mcp\Server\Ui\Enums\Visibility;
+use Crustum\Mcp\Server\Ui\Enum\Visibility;
 
 it('includes _meta.ui.resourceUri when RendersApp attribute is present', function (): void {
     $array = new RendersAppSpecTool()->toArray();

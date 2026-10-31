@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Crustum\Mcp\Server\Enums;
+namespace Crustum\Mcp\Enum;
 
 /**
  * MCP icon theme values.

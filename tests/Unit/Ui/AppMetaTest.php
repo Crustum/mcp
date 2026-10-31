@@ -5,8 +5,8 @@ use Crustum\Mcp\Contracts\Arrayable;
 use Crustum\Mcp\Server\Attributes\AppMeta as AppMetaAttribute;
 use Crustum\Mcp\Server\Ui\AppMeta;
 use Crustum\Mcp\Server\Ui\Csp;
-use Crustum\Mcp\Server\Ui\Enums\Library;
-use Crustum\Mcp\Server\Ui\Enums\Permission;
+use Crustum\Mcp\Server\Ui\Enum\Library;
+use Crustum\Mcp\Server\Ui\Enum\Permission;
 use Crustum\Mcp\Server\Ui\Permissions;
 
 it('serializes as empty when no fields set', function (): void {
@@ -145,5 +145,5 @@ it('uses an explicit domain set after withoutDomain', function (): void {
 });
 
 it('maps domain false on the attribute to withoutDomain', function (): void {
-    expect((new AppMetaAttribute(domain: false))->toAppMeta()->usesDomain())->toBeFalse();
+    expect(new AppMetaAttribute(domain: false)->toAppMeta()->usesDomain())->toBeFalse();
 });

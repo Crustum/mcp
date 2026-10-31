@@ -14,10 +14,10 @@ use Crustum\Mcp\Client\Methods\Discover;
 use Crustum\Mcp\Client\Methods\Initialize;
 use Crustum\Mcp\Client\Schema\DiscoverResult;
 use Crustum\Mcp\Client\Schema\InitializeResult;
-use Crustum\Mcp\Enums\ErrorCode;
-use Crustum\Mcp\Enums\MetaKey;
-use Crustum\Mcp\Enums\ProtocolHandshake;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ErrorCode;
+use Crustum\Mcp\Enum\MetaKey;
+use Crustum\Mcp\Enum\ProtocolHandshake;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Exception\SessionExpiredException;
@@ -68,7 +68,7 @@ class Protocol
      *
      * @param \Crustum\Mcp\Client\Contracts\Transport $transport Client transport
      * @param \Crustum\Mcp\Schema\Implementation $clientInfo Client implementation metadata
-     * @param \Crustum\Mcp\Enums\ProtocolVersion|null $pinnedProtocolVersion Pinned protocol version
+     * @param \Crustum\Mcp\Enum\ProtocolVersion|null $pinnedProtocolVersion Pinned protocol version
      */
     public function __construct(
         protected Transport $transport,
@@ -140,7 +140,7 @@ class Protocol
     /**
      * Pin the protocol version used for future negotiation.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion|null $protocolVersion Protocol version to pin
+     * @param \Crustum\Mcp\Enum\ProtocolVersion|null $protocolVersion Protocol version to pin
      * @return void
      */
     public function pinProtocolVersion(?ProtocolVersion $protocolVersion): void
@@ -156,7 +156,7 @@ class Protocol
     /**
      * Get the pinned protocol version.
      *
-     * @return \Crustum\Mcp\Enums\ProtocolVersion|null
+     * @return \Crustum\Mcp\Enum\ProtocolVersion|null
      */
     public function pinnedProtocolVersion(): ?ProtocolVersion
     {
@@ -269,7 +269,7 @@ class Protocol
     /**
      * Run the legacy initialize handshake for a protocol version.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version to offer
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version to offer
      * @param bool $pinned Whether the version was pinned by the caller
      * @return \Crustum\Mcp\Client\NegotiatedConnection
      */
@@ -293,7 +293,7 @@ class Protocol
     /**
      * Run the modern discovery handshake.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion|null $pinned Pinned protocol version
+     * @param \Crustum\Mcp\Enum\ProtocolVersion|null $pinned Pinned protocol version
      * @return \Crustum\Mcp\Client\NegotiatedConnection
      */
     protected function discover(?ProtocolVersion $pinned = null): NegotiatedConnection
@@ -343,8 +343,8 @@ class Protocol
     /**
      * Build the error thrown when the server settles on a different version.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $settled Version the server settled on
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $pinned Version that was requested
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $settled Version the server settled on
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $pinned Version that was requested
      * @return \Crustum\Mcp\Exception\ClientException
      */
     protected function versionMismatch(ProtocolVersion $settled, ProtocolVersion $pinned): ClientException
@@ -465,7 +465,7 @@ class Protocol
      * Attempt a single JSON-RPC request/response exchange.
      *
      * @param \Crustum\Mcp\Client\Contracts\Method<mixed> $method Method to dispatch
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version for the exchange
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version for the exchange
      * @return array<string, mixed>
      */
     protected function attempt(Method $method, ProtocolVersion $protocolVersion): array
@@ -548,7 +548,7 @@ class Protocol
      *
      * @param \Crustum\Mcp\Client\Contracts\Method<mixed> $method Method to dispatch
      * @param \Crustum\Mcp\Transport\JsonRpcRequest $request JSON-RPC request
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version for the exchange
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version for the exchange
      * @return array<string, string>
      */
     protected function requestHeaders(Method $method, JsonRpcRequest $request, ProtocolVersion $protocolVersion): array
@@ -567,7 +567,7 @@ class Protocol
      * Resolve the request params for a method and protocol era.
      *
      * @param \Crustum\Mcp\Client\Contracts\Method<mixed> $method Method to dispatch
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version for the exchange
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version for the exchange
      * @return array<string, mixed>
      */
     protected function params(Method $method, ProtocolVersion $protocolVersion): array
@@ -593,7 +593,7 @@ class Protocol
      * Send a JSON-RPC notification.
      *
      * @param string $method Notification method name
-     * @param \Crustum\Mcp\Enums\ProtocolVersion|null $protocolVersion Protocol version to use
+     * @param \Crustum\Mcp\Enum\ProtocolVersion|null $protocolVersion Protocol version to use
      * @return void
      */
     public function notify(string $method, ?ProtocolVersion $protocolVersion = null): void
@@ -608,7 +608,7 @@ class Protocol
     /**
      * Get the protocol version of the negotiated connection.
      *
-     * @return \Crustum\Mcp\Enums\ProtocolVersion
+     * @return \Crustum\Mcp\Enum\ProtocolVersion
      */
     public function connectionProtocol(): ProtocolVersion
     {
@@ -622,7 +622,7 @@ class Protocol
     /**
      * Configure the transport for the active protocol version.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version to use
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version to use
      * @return void
      */
     protected function configureTransport(ProtocolVersion $protocolVersion): void

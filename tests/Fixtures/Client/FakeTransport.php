@@ -6,7 +6,7 @@ namespace Crustum\Mcp\Test\Fixtures\Client;
 use Crustum\Mcp\Client\Contracts\Transport;
 use Crustum\Mcp\Client\Contracts\UsesProtocol;
 use Crustum\Mcp\Client\Exception\TimeoutException;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use RuntimeException;
 use Throwable;
 

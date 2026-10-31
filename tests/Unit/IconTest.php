@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use Cake\Core\Configure;
-use Crustum\Mcp\Enums\IconTheme;
+use Crustum\Mcp\Enum\IconTheme;
 use Crustum\Mcp\Schema\Icon;
 use Crustum\Mcp\Server\Attributes\Icon as IconAttribute;
 

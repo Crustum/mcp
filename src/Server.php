@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace Crustum\Mcp;
 
 use Cake\Core\Configure;
-use Crustum\Mcp\Enums\ErrorCode;
-use Crustum\Mcp\Enums\Extension;
-use Crustum\Mcp\Enums\MetaKey;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ErrorCode;
+use Crustum\Mcp\Enum\Extension;
+use Crustum\Mcp\Enum\MetaKey;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Schema\Implementation;
 use Crustum\Mcp\Server\AppResource;
@@ -100,7 +100,7 @@ abstract class Server
     /**
      * MCP extensions advertised through the extensions capability.
      *
-     * @var array<int, \Crustum\Mcp\Enums\Extension>
+     * @var array<int, \Crustum\Mcp\Enum\Extension>
      */
     protected array $extensions = [];
 

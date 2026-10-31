@@ -7,7 +7,7 @@ use Cake\Http\CallbackStream;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
 use Closure;
-use Crustum\Mcp\Enums\ErrorCode;
+use Crustum\Mcp\Enum\ErrorCode;
 use Crustum\Mcp\Server\Contracts\Transport;
 use Psr\Http\Message\ServerRequestInterface;
 

@@ -132,13 +132,13 @@ it('excludes _meta.ui.domain from resources/read and resources/list when app met
         'resources' => [$resource],
     ]);
 
-    $read = (new ReadResource())->handle(new JsonRpcRequest(
+    $read = new ReadResource()->handle(new JsonRpcRequest(
         id: 1,
         method: 'resources/read',
         params: ['uri' => $resource->uri()],
     ), $context)->toArray()['result'];
 
-    $list = (new ListResources())->handle(new JsonRpcRequest(
+    $list = new ListResources()->handle(new JsonRpcRequest(
         id: 2,
         method: 'resources/list',
         params: [],

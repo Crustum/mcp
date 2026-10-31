@@ -5,6 +5,7 @@ namespace Crustum\Mcp\Client\Trait;
 
 use Cake\Http\Client;
 use Cake\Http\Client\Exception\NetworkException;
+use Cake\Http\Client\Response;
 use Crustum\Mcp\Client\Exception\OAuthException;
 
 /**
@@ -76,7 +77,7 @@ trait InteractsWithOAuthEndpointsTrait
      * @param array<string, mixed> $options Additional request options
      * @return \Cake\Http\Client\Response
      */
-    protected function oAuthGet(string $url, array $options = []): Client\Response
+    protected function oAuthGet(string $url, array $options = []): Response
     {
         try {
             return $this->oAuthHttpClient()->get($url, [], $this->mergeOAuthOptions($options));
@@ -97,7 +98,7 @@ trait InteractsWithOAuthEndpointsTrait
      * @param array<string, mixed> $options Additional request options
      * @return \Cake\Http\Client\Response
      */
-    protected function oAuthPostJson(string $url, array $data, array $options = []): Client\Response
+    protected function oAuthPostJson(string $url, array $data, array $options = []): Response
     {
         try {
             return $this->oAuthHttpClient()->post($url, $data, array_merge(
@@ -121,7 +122,7 @@ trait InteractsWithOAuthEndpointsTrait
      * @param array<string, mixed> $options Additional request options
      * @return \Cake\Http\Client\Response
      */
-    protected function oAuthPostForm(string $url, array $data, array $options = []): Client\Response
+    protected function oAuthPostForm(string $url, array $data, array $options = []): Response
     {
         try {
             return $this->oAuthHttpClient()->post($url, $data, $this->mergeOAuthOptions($options));

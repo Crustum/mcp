@@ -13,9 +13,9 @@ use Crustum\Mcp\Client\Contracts\UsesProtocol;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
 use Crustum\Mcp\Client\Exception\TransportException;
 use Crustum\Mcp\Client\OAuth\WwwAuthenticateChallenge;
-use Crustum\Mcp\Enums\ProtocolHandshake;
-use Crustum\Mcp\Enums\ProtocolVersion;
-use Crustum\Mcp\Enums\RequestHeader;
+use Crustum\Mcp\Enum\ProtocolHandshake;
+use Crustum\Mcp\Enum\ProtocolVersion;
+use Crustum\Mcp\Enum\RequestHeader;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\SessionExpiredException;
 use Psr\Http\Message\StreamInterface;
@@ -37,7 +37,7 @@ class HttpTransport implements Transport, UsesProtocol
     /**
      * Active protocol version for the transport.
      *
-     * @var \Crustum\Mcp\Enums\ProtocolVersion|null
+     * @var \Crustum\Mcp\Enum\ProtocolVersion|null
      */
     protected ?ProtocolVersion $protocolVersion = null;
 
@@ -258,7 +258,7 @@ class HttpTransport implements Transport, UsesProtocol
     /**
      * Configure the transport for the active protocol version.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version
      * @return void
      */
     public function useProtocol(ProtocolVersion $protocolVersion): void

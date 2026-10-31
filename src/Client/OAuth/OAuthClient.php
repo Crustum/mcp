@@ -6,7 +6,7 @@ namespace Crustum\Mcp\Client\OAuth;
 use Cake\Http\Response;
 use Cake\Http\Session;
 use Crustum\Mcp\Client\Exception\OAuthException;
-use Crustum\Mcp\Client\OAuth\Enums\TokenEndpointAuthMethod;
+use Crustum\Mcp\Client\OAuth\Enum\TokenEndpointAuthMethod;
 use Crustum\Mcp\Client\Trait\InteractsWithOAuthEndpointsTrait;
 use SensitiveParameter;
 
@@ -366,7 +366,7 @@ class OAuthClient
      * @param array<string, mixed> $params Token request parameters
      * @param string|null $clientId OAuth client identifier
      * @param string|null $clientSecret OAuth client secret
-     * @param \Crustum\Mcp\Client\OAuth\Enums\TokenEndpointAuthMethod $authMethod Token endpoint auth method
+     * @param \Crustum\Mcp\Client\OAuth\Enum\TokenEndpointAuthMethod $authMethod Token endpoint auth method
      * @return \Crustum\Mcp\Client\OAuth\TokenSet
      */
     protected function requestToken(
@@ -466,7 +466,7 @@ class OAuthClient
      *
      * @param \Crustum\Mcp\Client\OAuth\AuthServerMetadata $metadata Authorization server metadata
      * @param string|null $clientSecret OAuth client secret
-     * @return \Crustum\Mcp\Client\OAuth\Enums\TokenEndpointAuthMethod
+     * @return \Crustum\Mcp\Client\OAuth\Enum\TokenEndpointAuthMethod
      */
     protected function resolveTokenAuthMethod(
         AuthServerMetadata $metadata,

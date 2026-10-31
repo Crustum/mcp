@@ -8,7 +8,7 @@ use Crustum\Mcp\Server\Attributes\AppMeta as AppMetaAttribute;
 use Crustum\Mcp\Server\ServerUrl;
 use Crustum\Mcp\Server\Ui\AppMeta;
 use Crustum\Mcp\Server\Ui\Csp;
-use Crustum\Mcp\Server\Ui\Enums\Permission;
+use Crustum\Mcp\Server\Ui\Enum\Permission;
 use Crustum\Mcp\Server\Ui\Permissions;
 use Crustum\Mcp\Support\Str;
 

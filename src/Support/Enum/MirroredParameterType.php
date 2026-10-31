@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Crustum\Mcp\Support;
+namespace Crustum\Mcp\Support\Enum;
 
 /**
  * Types that can be mirrored into a request header.

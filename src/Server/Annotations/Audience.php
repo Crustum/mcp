@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Annotations;
 
 use Attribute;
-use Crustum\Mcp\Enums\Role;
+use Crustum\Mcp\Enum\Role;
 use InvalidArgumentException;
 
 /**
@@ -21,7 +21,7 @@ class Audience extends Annotation
     public array $value;
 
     /**
-     * @param \Crustum\Mcp\Enums\Role|array<int, mixed> $roles Audience roles
+     * @param \Crustum\Mcp\Enum\Role|array<int, mixed> $roles Audience roles
      */
     public function __construct(Role|array $roles)
     {

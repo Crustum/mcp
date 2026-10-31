@@ -6,7 +6,7 @@ namespace Crustum\Mcp\Client;
 use Cake\Core\Configure;
 use Closure;
 use Crustum\Mcp\Client as McpClient;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Trait\MacroableTrait;
 use Crustum\Mcp\WebClient;

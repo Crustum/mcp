@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use Crustum\Mcp\Client;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Test\Fixtures\Client\FakeTransport;

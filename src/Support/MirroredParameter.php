@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Support;
 
 use Crustum\Mcp\Exception\MirroredParameterException;
+use Crustum\Mcp\Support\Enum\MirroredParameterType;
 use Crustum\Mcp\Transport\HeaderValue;
 
 /**
@@ -16,7 +17,7 @@ class MirroredParameter
      *
      * @param \Crustum\Mcp\Support\SchemaPath $path Schema path to the parameter
      * @param string $name Header name token
-     * @param \Crustum\Mcp\Support\MirroredParameterType $type Parameter type
+     * @param \Crustum\Mcp\Support\Enum\MirroredParameterType $type Parameter type
      */
     public function __construct(
         public readonly SchemaPath $path,

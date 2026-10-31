@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Crustum\Mcp\Server\Ui\Enums;
+namespace Crustum\Mcp\Server\Ui\Enum;
 
 /**
  * MCP UI visibility scopes.

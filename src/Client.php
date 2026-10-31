@@ -27,8 +27,8 @@ use Crustum\Mcp\Client\Schema\ToolResult;
 use Crustum\Mcp\Client\Transport\HttpTransport;
 use Crustum\Mcp\Client\Transport\StdioTransport;
 use Crustum\Mcp\Client\Transport\TransportFactory;
-use Crustum\Mcp\Enums\ErrorCode;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ErrorCode;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Schema\Implementation;
@@ -311,7 +311,7 @@ class Client
     /**
      * Pin the protocol version used by the client.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion|null $version Protocol version to pin
+     * @param \Crustum\Mcp\Enum\ProtocolVersion|null $version Protocol version to pin
      * @return static
      */
     public function withProtocolVersion(?ProtocolVersion $version): static
@@ -332,7 +332,7 @@ class Client
     /**
      * Get the negotiated protocol version.
      *
-     * @return \Crustum\Mcp\Enums\ProtocolVersion
+     * @return \Crustum\Mcp\Enum\ProtocolVersion
      */
     public function protocolVersion(): ProtocolVersion
     {

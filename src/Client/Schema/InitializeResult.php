@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Client\Schema;
 
 use Cake\Utility\Hash;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Schema\Implementation;
 

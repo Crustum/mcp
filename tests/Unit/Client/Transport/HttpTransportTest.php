@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Transport\HttpTransport;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\SessionExpiredException;
 use Crustum\Mcp\Test\Support\HttpFake;

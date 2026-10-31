@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Transport;
 
 use Crustum\Mcp\Contracts\Arrayable;
-use Crustum\Mcp\Enums\MetaKey;
-use Crustum\Mcp\Enums\RequestHeader;
+use Crustum\Mcp\Enum\MetaKey;
+use Crustum\Mcp\Enum\RequestHeader;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Request;
 

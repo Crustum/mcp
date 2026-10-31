@@ -8,7 +8,7 @@ use Crustum\Mcp\Client\ClientManager;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
 use Crustum\Mcp\Client\Schema\ToolResult;
 use Crustum\Mcp\Client\Transport\HttpTransport;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Facades\Mcp;
 use Crustum\Mcp\Test\Fixtures\Client\FakeTransport;

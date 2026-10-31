@@ -5,7 +5,7 @@ use Cake\Log\Log;
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Primitives\Tool;
 use Crustum\Mcp\Client\Schema\ToolResult;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Test\Fixtures\Client\FakeTransport;
 

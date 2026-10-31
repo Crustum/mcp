@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Crustum\Mcp\Enums;
+namespace Crustum\Mcp\Enum;
 
 /**
  * MCP protocol metadata keys carried in request and result `_meta` members.

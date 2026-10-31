@@ -7,7 +7,7 @@ use Cake\Cache\Cache;
 use Closure;
 use Crustum\Mcp\Client\Contracts\Method;
 use Crustum\Mcp\Client\Contracts\Transport;
-use Crustum\Mcp\Enums\CacheScope;
+use Crustum\Mcp\Enum\CacheScope;
 use Crustum\Mcp\Server;
 use function array_diff_key;
 use function array_flip;
@@ -104,7 +104,7 @@ class ResponseCache
      * @param array<string, mixed> $recipe Transport recipe
      * @param string $method JSON-RPC method name
      * @param array<string, mixed> $params Request parameters
-     * @param \Crustum\Mcp\Enums\CacheScope $scope Cache scope
+     * @param \Crustum\Mcp\Enum\CacheScope $scope Cache scope
      * @return string
      */
     protected function key(array $recipe, string $method, array $params, CacheScope $scope): string

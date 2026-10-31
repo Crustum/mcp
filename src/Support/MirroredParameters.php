@@ -6,6 +6,7 @@ namespace Crustum\Mcp\Support;
 use Cake\Collection\Collection;
 use Countable;
 use Crustum\Mcp\Exception\MirroredParameterException;
+use Crustum\Mcp\Support\Enum\MirroredParameterType;
 use Crustum\Mcp\Transport\HeaderValue;
 
 /**

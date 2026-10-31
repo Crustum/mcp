@@ -5,7 +5,7 @@ namespace Crustum\Mcp\Client;
 
 use Crustum\Mcp\Client\Schema\DiscoverResult;
 use Crustum\Mcp\Client\Schema\InitializeResult;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Schema\Implementation;
 
 /**
@@ -16,7 +16,7 @@ class NegotiatedConnection
     /**
      * Create a new negotiated connection.
      *
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Settled protocol version
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Settled protocol version
      * @param \Crustum\Mcp\Client\Schema\DiscoverResult|\Crustum\Mcp\Client\Schema\InitializeResult $result Handshake result
      */
     public function __construct(

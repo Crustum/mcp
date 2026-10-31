@@ -34,7 +34,7 @@ it('rejects hosts that resolve to non public addresses', function (string $addre
 
     Http::fake();
 
-    expect(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
+    expect(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
         ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
 
     Http::assertNothingSent();
@@ -67,7 +67,7 @@ it('rejects internal endpoints when the resource also resolves to public address
 
     Http::fake();
 
-    expect(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
+    expect(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
         ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
 
     Http::assertNothingSent();
@@ -78,7 +78,7 @@ it('allows hosts that resolve to a wrapped public ipv4 address', function (strin
 
     fakeAuthServer();
 
-    expect((new AuthServerDiscovery())->discover('https://mcp.test/mcp')->server->issuer)
+    expect(new AuthServerDiscovery()->discover('https://mcp.test/mcp')->server->issuer)
         ->toBe('https://auth.test');
 })->with([
     'ipv4 mapped' => '::ffff:93.184.216.34',
@@ -88,7 +88,7 @@ it('allows hosts that resolve to a wrapped public ipv4 address', function (strin
 it('rejects hosts that do not resolve', function (): void {
     resolveHosts(['mcp.test' => ['93.184.216.34']]);
 
-    expect(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
+    expect(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
         ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
 });
 
@@ -97,7 +97,7 @@ it('allows an internal endpoint on the same host as the resource', function (): 
 
     fakeAuthServer('https://intranet.test');
 
-    expect((new AuthServerDiscovery())->discover('https://intranet.test/mcp')->server->issuer)
+    expect(new AuthServerDiscovery()->discover('https://intranet.test/mcp')->server->issuer)
         ->toBe('https://auth.test');
 });
 
@@ -106,7 +106,7 @@ it('allows internal endpoints on other hosts when the resource is internal', fun
 
     fakeAuthServer();
 
-    expect((new AuthServerDiscovery())->discover('https://mcp.test/mcp')->server->issuer)
+    expect(new AuthServerDiscovery()->discover('https://mcp.test/mcp')->server->issuer)
         ->toBe('https://auth.test');
 });
 
@@ -119,7 +119,7 @@ it('rejects a registration endpoint on an internal host', function (): void {
 
     fakeAuthServer(registrationEndpoint: 'https://register.test/register');
 
-    expect(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.test/mcp'))
+    expect(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.test/mcp'))
         ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
 });
 
@@ -132,7 +132,7 @@ it('pins each request to the addresses that were checked', function (): void {
 
     fakeAuthServer();
 
-    (new AuthServerDiscovery())->discover('https://mcp.test/mcp');
+    new AuthServerDiscovery()->discover('https://mcp.test/mcp');
 
     $pins = [];
 
@@ -157,7 +157,7 @@ it('looks up each host once per discovery', function (): void {
 
     fakeAuthServer();
 
-    (new AuthServerDiscovery())->discover('https://mcp.test/mcp');
+    new AuthServerDiscovery()->discover('https://mcp.test/mcp');
 
     expect($lookups)->toBe(['mcp.test' => 1, 'auth.test' => 1]);
 });
@@ -171,7 +171,7 @@ it('does not resolve the authorization endpoint the browser opens', function ():
 
     fakeAuthServer(authorizationEndpoint: 'https://login.corp.test/authorize');
 
-    expect((new AuthServerDiscovery())->discover('https://mcp.test/mcp')->server->authorizationEndpoint)
+    expect(new AuthServerDiscovery()->discover('https://mcp.test/mcp')->server->authorizationEndpoint)
         ->toBe('https://login.corp.test/authorize');
 });
 
@@ -191,8 +191,8 @@ it('skips resolution when an http proxy is configured', function (): void {
     ]);
 
     try {
-        expect((new AuthServerDiscovery())->discover('https://mcp.example.com/mcp')->server->issuer)->toBe('https://auth.example.com')
-            ->and(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.example.com/mcp', 'https://127.0.0.1:9200/prm'))
+        expect(new AuthServerDiscovery()->discover('https://mcp.example.com/mcp')->server->issuer)->toBe('https://auth.example.com')
+            ->and(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.example.com/mcp', 'https://127.0.0.1:9200/prm'))
             ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
     } finally {
         putenv('HTTPS_PROXY');
@@ -206,7 +206,7 @@ it('rejects local hostnames when an http proxy is configured', function (string 
     Http::fake();
 
     try {
-        expect(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.test/mcp', "https://{$host}/prm"))
+        expect(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.test/mcp', "https://{$host}/prm"))
             ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
 
         Http::assertNothingSent();
@@ -229,7 +229,7 @@ it('still resolves hosts when only an http proxy is configured', function (): vo
     Http::fake();
 
     try {
-        expect(fn(): DiscoveryResult => (new AuthServerDiscovery())->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
+        expect(fn(): DiscoveryResult => new AuthServerDiscovery()->discover('https://mcp.test/mcp', 'https://meta.test/prm'))
             ->toThrow(OAuthException::class, 'cannot use a private, internal, or unresolvable host');
     } finally {
         putenv('HTTP_PROXY');

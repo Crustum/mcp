@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use Crustum\Mcp\Contracts\Arrayable;
-use Crustum\Mcp\Server\Ui\Enums\Permission;
+use Crustum\Mcp\Server\Ui\Enum\Permission;
 use Crustum\Mcp\Server\Ui\Permissions;
 
 it('serializes as empty when no permissions set', function (): void {

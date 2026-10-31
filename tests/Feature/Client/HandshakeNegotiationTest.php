@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 use Crustum\Mcp\Client;
 use Crustum\Mcp\Client\Exception\AuthorizationRequiredException;
-use Crustum\Mcp\Enums\ProtocolVersion;
-use Crustum\Mcp\Enums\RequestHeader;
+use Crustum\Mcp\Enum\ProtocolVersion;
+use Crustum\Mcp\Enum\RequestHeader;
 use Crustum\Mcp\Exception\ClientException;
 use Crustum\Mcp\Exception\JsonRpcException;
 

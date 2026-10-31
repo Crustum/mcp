@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp;
 
 use Cake\View\View;
-use Crustum\Mcp\Enums\Role;
+use Crustum\Mcp\Enum\Role;
 use Crustum\Mcp\Server\Content\Audio;
 use Crustum\Mcp\Server\Content\Blob;
 use Crustum\Mcp\Server\Content\Image;
@@ -33,7 +33,7 @@ class Response
 
     /**
      * @param \Crustum\Mcp\Server\Contracts\Content $content Response content
-     * @param \Crustum\Mcp\Enums\Role $role Message role
+     * @param \Crustum\Mcp\Enum\Role $role Message role
      * @param bool $isError Whether the response represents an error
      */
     protected function __construct(
@@ -317,7 +317,7 @@ class Response
     /**
      * Get the response role.
      *
-     * @return \Crustum\Mcp\Enums\Role
+     * @return \Crustum\Mcp\Enum\Role
      */
     public function role(): Role
     {

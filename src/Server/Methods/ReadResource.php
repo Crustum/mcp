@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Server\Methods;
 
-use Crustum\Mcp\Enums\ErrorCode;
+use Crustum\Mcp\Enum\ErrorCode;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\ResponseFactory;

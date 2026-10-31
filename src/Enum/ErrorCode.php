@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Crustum\Mcp\Enums;
+namespace Crustum\Mcp\Enum;
 
 /**
  * MCP and JSON-RPC error codes.

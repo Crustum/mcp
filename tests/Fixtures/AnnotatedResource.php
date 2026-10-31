@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Test\Fixtures;
 
-use Crustum\Mcp\Enums\Role;
+use Crustum\Mcp\Enum\Role;
 use Crustum\Mcp\Server\Annotations\Audience;
 use Crustum\Mcp\Server\Annotations\LastModified;
 use Crustum\Mcp\Server\Annotations\Priority;

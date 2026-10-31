@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Crustum\Mcp\Enums\Role;
+use Crustum\Mcp\Enum\Role;
 use Crustum\Mcp\Request;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\Server\Annotations\Audience;

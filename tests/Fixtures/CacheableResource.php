@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Test\Fixtures;
 
-use Crustum\Mcp\Enums\CacheScope;
+use Crustum\Mcp\Enum\CacheScope;
 use Crustum\Mcp\Server\Attributes\Cacheable;
 use Crustum\Mcp\Server\Resource;
 

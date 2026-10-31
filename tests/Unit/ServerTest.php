@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Crustum\Mcp\Enums\IconTheme;
+use Crustum\Mcp\Enum\IconTheme;
 use Crustum\Mcp\Schema\Icon;
 use Crustum\Mcp\Server;
 use Crustum\Mcp\Server\Attributes\Icon as IconAttribute;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Middleware;
 
 use Cake\Http\Response;
-use Crustum\Mcp\Enums\ErrorCode;
-use Crustum\Mcp\Enums\MetaKey;
-use Crustum\Mcp\Enums\ProtocolVersion;
-use Crustum\Mcp\Enums\RequestHeader;
+use Crustum\Mcp\Enum\ErrorCode;
+use Crustum\Mcp\Enum\MetaKey;
+use Crustum\Mcp\Enum\ProtocolVersion;
+use Crustum\Mcp\Enum\RequestHeader;
 use Crustum\Mcp\Transport\HeaderValue;
 use Crustum\Mcp\Transport\JsonRpcRequest;
 use Psr\Http\Message\ResponseInterface;
@@ -133,7 +133,7 @@ class ValidateMcpHeaders implements MiddlewareInterface
      * Compare a mirrored header against its expected value.
      *
      * @param \Psr\Http\Message\ServerRequestInterface $request Server request
-     * @param \Crustum\Mcp\Enums\RequestHeader $header Mirrored header name
+     * @param \Crustum\Mcp\Enum\RequestHeader $header Mirrored header name
      * @param mixed $expected Expected protocol value
      * @param bool $required Whether the header is required
      * @return string|null Mismatch message, or null when valid

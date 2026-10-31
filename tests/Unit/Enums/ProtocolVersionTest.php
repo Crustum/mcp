@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-use Crustum\Mcp\Enums\ProtocolHandshake;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolHandshake;
+use Crustum\Mcp\Enum\ProtocolVersion;
 
 it('defines the handshake for each protocol version explicitly', function (): void {
     expect(ProtocolVersion::V2026_07_28->handshake())->toBe(ProtocolHandshake::Discovery)

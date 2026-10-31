@@ -5,7 +5,7 @@ namespace Crustum\Mcp\Schema;
 
 use Cake\Utility\Hash;
 use Crustum\Mcp\Contracts\Arrayable;
-use Crustum\Mcp\Enums\IconTheme;
+use Crustum\Mcp\Enum\IconTheme;
 use InvalidArgumentException;
 
 /**

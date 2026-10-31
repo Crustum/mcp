@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Client\OAuth;
 
 use Crustum\Mcp\Client\Exception\OAuthException;
-use Crustum\Mcp\Client\OAuth\Enums\TokenEndpointAuthMethod;
+use Crustum\Mcp\Client\OAuth\Enum\TokenEndpointAuthMethod;
 use Crustum\Mcp\Client\Trait\InteractsWithOAuthEndpointsTrait;
 
 /**
@@ -31,7 +31,7 @@ class DynamicClientRegistration
      * @param string|null $scope Requested OAuth scope
      * @param string $clientName Registered client name
      * @param string $applicationType OAuth application type
-     * @param \Crustum\Mcp\Client\OAuth\Enums\TokenEndpointAuthMethod $tokenEndpointAuthMethod Token endpoint auth method
+     * @param \Crustum\Mcp\Client\OAuth\Enum\TokenEndpointAuthMethod $tokenEndpointAuthMethod Token endpoint auth method
      * @return \Crustum\Mcp\Client\OAuth\ClientRegistration
      */
     public function register(

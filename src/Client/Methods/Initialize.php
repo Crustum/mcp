@@ -6,7 +6,7 @@ namespace Crustum\Mcp\Client\Methods;
 use Crustum\Mcp\Client\Contracts\Method;
 use Crustum\Mcp\Client\Protocol;
 use Crustum\Mcp\Client\Schema\InitializeResult;
-use Crustum\Mcp\Enums\ProtocolVersion;
+use Crustum\Mcp\Enum\ProtocolVersion;
 use Crustum\Mcp\Schema\Implementation;
 
 /**
@@ -20,7 +20,7 @@ class Initialize implements Method
      * Create a new initialize method.
      *
      * @param \Crustum\Mcp\Schema\Implementation $clientInfo Client implementation metadata
-     * @param \Crustum\Mcp\Enums\ProtocolVersion $protocolVersion Protocol version to offer
+     * @param \Crustum\Mcp\Enum\ProtocolVersion $protocolVersion Protocol version to offer
      */
     public function __construct(
         protected Implementation $clientInfo,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Ui;
 
 use Crustum\Mcp\Contracts\Arrayable;
+use Crustum\Mcp\Server\Ui\Enum\Permission;
 use stdClass;
 
 /**
@@ -16,7 +17,7 @@ final class Permissions implements Arrayable
     /**
      * Enabled permissions.
      *
-     * @var array<int, \Crustum\Mcp\Server\Ui\Enums\Permission>
+     * @var array<int, \Crustum\Mcp\Server\Ui\Enum\Permission>
      */
     protected array $enabled = [];
 
@@ -37,7 +38,7 @@ final class Permissions implements Arrayable
      */
     public function camera(): static
     {
-        return $this->allow(Enums\Permission::Camera);
+        return $this->allow(Permission::Camera);
     }
 
     /**
@@ -47,7 +48,7 @@ final class Permissions implements Arrayable
      */
     public function microphone(): static
     {
-        return $this->allow(Enums\Permission::Microphone);
+        return $this->allow(Permission::Microphone);
     }
 
     /**
@@ -57,7 +58,7 @@ final class Permissions implements Arrayable
      */
     public function geolocation(): static
     {
-        return $this->allow(Enums\Permission::Geolocation);
+        return $this->allow(Permission::Geolocation);
     }
 
     /**
@@ -67,16 +68,16 @@ final class Permissions implements Arrayable
      */
     public function clipboardWrite(): static
     {
-        return $this->allow(Enums\Permission::ClipboardWrite);
+        return $this->allow(Permission::ClipboardWrite);
     }
 
     /**
      * Allow one or more permissions.
      *
-     * @param \Crustum\Mcp\Server\Ui\Enums\Permission ...$permissions Permissions to allow
+     * @param \Crustum\Mcp\Server\Ui\Enum\Permission ...$permissions Permissions to allow
      * @return static
      */
-    public function allow(Enums\Permission ...$permissions): static
+    public function allow(Permission ...$permissions): static
     {
         array_push($this->enabled, ...$permissions);
 

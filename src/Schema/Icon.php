@@ -5,7 +5,7 @@ namespace Crustum\Mcp\Schema;
 
 use Cake\Core\Configure;
 use Crustum\Mcp\Contracts\Arrayable;
-use Crustum\Mcp\Enums\IconTheme;
+use Crustum\Mcp\Enum\IconTheme;
 
 /**
  * MCP icon schema value.
@@ -20,7 +20,7 @@ class Icon implements Arrayable
      * @param string $src Icon source URL or path
      * @param string|null $mimeType Icon MIME type
      * @param list<string> $sizes Supported icon sizes
-     * @param \Crustum\Mcp\Enums\IconTheme|null $theme Icon theme
+     * @param \Crustum\Mcp\Enum\IconTheme|null $theme Icon theme
      */
     public function __construct(
         public string $src,
@@ -36,7 +36,7 @@ class Icon implements Arrayable
      * @param string $src Icon source URL or path
      * @param string|null $mimeType Icon MIME type
      * @param list<string> $sizes Supported icon sizes
-     * @param \Crustum\Mcp\Enums\IconTheme|null $theme Icon theme
+     * @param \Crustum\Mcp\Enum\IconTheme|null $theme Icon theme
      * @return self
      */
     public static function from(string $src, ?string $mimeType = null, array $sizes = [], ?IconTheme $theme = null): self

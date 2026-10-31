@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Attributes;
 
 use Attribute;
-use Crustum\Mcp\Enums\CacheScope;
+use Crustum\Mcp\Enum\CacheScope;
 
 /**
  * Declares caching hints for a cacheable MCP result.
@@ -18,7 +18,7 @@ class Cacheable
      * Create a new cacheable attribute.
      *
      * @param int $ttlMs Time-to-live in milliseconds
-     * @param \Crustum\Mcp\Enums\CacheScope $scope Caching scope
+     * @param \Crustum\Mcp\Enum\CacheScope $scope Caching scope
      */
     public function __construct(
         public int $ttlMs = 0,

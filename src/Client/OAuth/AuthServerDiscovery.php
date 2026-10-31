@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Crustum\Mcp\Client\OAuth;
 
-use Cake\Http\Client;
 use Cake\Http\Client\Exception\MissingResponseException;
 use Cake\Http\Client\Exception\NetworkException;
+use Cake\Http\Client\Response;
 use Cake\Utility\Hash;
 use Closure;
 use Crustum\Mcp\Client\Exception\OAuthException;
@@ -167,7 +167,7 @@ class AuthServerDiscovery
      * @param array<string, string> $headers Headers forwarded to the probe
      * @return \Cake\Http\Client\Response
      */
-    protected function probe(string $resourceUrl, array $headers): Client\Response
+    protected function probe(string $resourceUrl, array $headers): Response
     {
         $body = (string)json_encode([
             'jsonrpc' => '2.0',
@@ -462,13 +462,7 @@ class AuthServerDiscovery
     {
         $name = '.' . rtrim($host, '.');
 
-        foreach (['.localhost', '.local', '.internal', '.test'] as $suffix) {
-            if (str_ends_with($name, $suffix)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(['.localhost', '.local', '.internal', '.test'], fn(string $suffix): bool => str_ends_with($name, $suffix));
     }
 
     /**
@@ -478,13 +472,7 @@ class AuthServerDiscovery
      */
     protected function usesProxy(): bool
     {
-        foreach (['HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy'] as $variable) {
-            if (getenv($variable)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(['HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy'], fn(string $variable): string|false => getenv($variable));
     }
 
     /**
@@ -588,13 +576,7 @@ class AuthServerDiscovery
      */
     protected function startsWithAny(string $value, array $prefixes): bool
     {
-        foreach ($prefixes as $prefix) {
-            if (str_starts_with($value, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($prefixes, fn(string $prefix): bool => str_starts_with($value, $prefix));
     }
 
     /**

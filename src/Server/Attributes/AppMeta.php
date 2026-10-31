@@ -19,10 +19,10 @@ class AppMeta
      * @param array<int, string>|null $resourceDomains Domains allowed for static resources
      * @param array<int, string>|null $frameDomains Domains allowed for nested iframes
      * @param array<int, string>|null $baseUriDomains Allowed base URI domains
-     * @param array<int, \Crustum\Mcp\Server\Ui\Enums\Permission>|null $permissions Allowed UI permissions
+     * @param array<int, \Crustum\Mcp\Server\Ui\Enum\Permission>|null $permissions Allowed UI permissions
      * @param bool|null $prefersBorder Whether the UI prefers a border
      * @param string|false|null $domain Application domain, or false to leave ui.domain out entirely
-     * @param array<int, \Crustum\Mcp\Server\Ui\Enums\Library> $libraries Frontend libraries to include
+     * @param array<int, \Crustum\Mcp\Server\Ui\Enum\Library> $libraries Frontend libraries to include
      */
     public function __construct(
         public readonly ?array $connectDomains = null,

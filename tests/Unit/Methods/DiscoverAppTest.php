@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Crustum\Mcp\Enums\Extension;
+use Crustum\Mcp\Enum\Extension;
 use Crustum\Mcp\Request;
 use Crustum\Mcp\Response;
 use Crustum\Mcp\Server;

@@ -8,7 +8,7 @@ use Crustum\JsonSchema\JsonSchema as JsonSchemaFactory;
 use Crustum\Mcp\Server\Attributes\RendersApp;
 use Crustum\Mcp\Server\Tools\Annotations\ToolAnnotation;
 use Crustum\Mcp\Server\Trait\HasAnnotationsTrait;
-use Crustum\Mcp\Server\Ui\Enums\Visibility;
+use Crustum\Mcp\Server\Ui\Enum\Visibility;
 
 /**
  * Base MCP tool primitive.

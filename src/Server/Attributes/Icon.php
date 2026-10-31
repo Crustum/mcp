@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Crustum\Mcp\Server\Attributes;
 
 use Attribute;
-use Crustum\Mcp\Enums\IconTheme;
+use Crustum\Mcp\Enum\IconTheme;
 use Crustum\Mcp\Schema\Icon as IconValue;
 
 /**
@@ -17,7 +17,7 @@ class Icon
      * @param string $src Icon source URL or path
      * @param string|null $mimeType Icon MIME type
      * @param list<string> $sizes Supported icon sizes
-     * @param \Crustum\Mcp\Enums\IconTheme|null $theme Icon theme
+     * @param \Crustum\Mcp\Enum\IconTheme|null $theme Icon theme
      */
     public function __construct(
         public string $src,

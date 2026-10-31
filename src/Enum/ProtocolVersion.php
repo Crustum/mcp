@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Crustum\Mcp\Enums;
+namespace Crustum\Mcp\Enum;
 
 /**
  * Supported MCP protocol versions.
@@ -24,7 +24,7 @@ enum ProtocolVersion: string
     /**
      * Resolve the handshake style used by this protocol version.
      *
-     * @return \Crustum\Mcp\Enums\ProtocolHandshake
+     * @return \Crustum\Mcp\Enum\ProtocolHandshake
      */
     public function handshake(): ProtocolHandshake
     {

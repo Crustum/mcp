@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Crustum\Mcp\Enums\ErrorCode;
+use Crustum\Mcp\Enum\ErrorCode;
 use Crustum\Mcp\Exception\JsonRpcException;
 use Crustum\Mcp\Request;
 use Crustum\Mcp\Response;

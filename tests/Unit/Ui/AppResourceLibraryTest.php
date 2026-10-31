@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Crustum\Mcp\Server\Ui\Enums\Library;
+use Crustum\Mcp\Server\Ui\Enum\Library;
 
 it('returns correct domains for tailwind', function (): void {
     expect(Library::Tailwind->domains())
